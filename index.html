@@ -1,0 +1,2548 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meizizi观测</title>
+  <link rel="icon" href="https://live2d.honkai.ct8.pl/luo.ico" type="image/x-icon">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.10.0/dist/tabler-icons.min.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d12;
+      --bg-card: rgba(10,10,20,0.55);
+      --bg-card-hover: rgba(10,10,20,0.68);
+      --border: rgba(255,255,255,0.08);
+      --border-hover: rgba(255,255,255,0.16);
+      --text-primary: #f0f0f4;
+      --text-secondary: #8888a0;
+      --text-muted: #55556a;
+      --accent: #7c6cf8;
+      --accent-dim: rgba(124,108,248,0.15);
+      --green: #3ddc84;
+      --green-dim: rgba(61,220,132,0.12);
+      --amber: #f5a623;
+      --amber-dim: rgba(245,166,35,0.12);
+      --red: #ff5f57;
+      --red-dim: rgba(255,95,87,0.12);
+      --blue: #4da6ff;
+      --blue-dim: rgba(77,166,255,0.12);
+      --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      --radius: 14px;
+      --radius-sm: 8px;
+    }
+
+    body {
+      background: transparent;
+      color: var(--text-primary);
+      font-family: -apple-system, 'PingFang SC', 'Noto Sans SC', system-ui, sans-serif;
+      min-height: 100vh;
+      padding: 32px 20px 60px;
+      line-height: 1.6;
+    }
+
+    #bg-video {
+      position: fixed; inset: 0; width: 100%; height: 100%;
+      object-fit: cover; z-index: -1; pointer-events: none;
+    }
+    #bg-overlay {
+      position: fixed; inset: 0;
+      background: rgba(10,10,18,0.55); z-index: 0; pointer-events: none;
+    }
+
+    .page { position: relative; z-index: 1; max-width: 780px; margin: 0 auto; }
+
+    /* Header */
+    .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+    .header-left h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.3px; }
+    .header-left p { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+    .header-badge {
+      display: flex; align-items: center; gap: 6px; font-size: 12px;
+      color: var(--text-secondary); background: var(--bg-card);
+      border: 1px solid var(--border); border-radius: 20px; padding: 6px 14px;
+    }
+    .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--green); box-shadow: 0 0 6px var(--green);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px 22px;
+      transition: border-color .2s, background .2s;
+    }
+    .card:hover { border-color: var(--border-hover); background: var(--bg-card-hover); }
+    .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .card-title {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 13px; font-weight: 500; color: var(--text-secondary);
+      text-transform: uppercase; letter-spacing: 0.6px;
+    }
+    .card-title i { font-size: 15px; }
+
+    /* IP Grid */
+    .ip-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+    @media(max-width:540px) { .ip-grid { grid-template-columns: 1fr; } }
+
+    .status-badge {
+      font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 500;
+      background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border);
+    }
+    .status-badge.ok  { background: var(--green-dim); color: var(--green); border-color: rgba(61,220,132,0.2); }
+    .status-badge.warn{ background: var(--amber-dim); color: var(--amber); border-color: rgba(245,166,35,0.2); }
+    .status-badge.err { background: var(--red-dim);   color: var(--red);   border-color: rgba(255,95,87,0.2); }
+
+    .ip-value {
+      font-size: 17px; font-weight: 600; font-family: var(--mono);
+      color: var(--text-primary); margin: 10px 0 8px; word-break: break-all; letter-spacing: -0.3px;
+    }
+    .ip-meta { font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 5px; margin-top: 4px; }
+    .ip-meta i { font-size: 13px; opacity: 0.7; }
+
+    /* RTT */
+    .rtt-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .rtt-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .rtt-row:first-child { padding-top: 0; }
+    .rtt-name { font-size: 13px; color: var(--text-secondary); width: 110px; flex-shrink: 0; display: flex; align-items: center; gap: 6px; }
+    .rtt-name i { font-size: 14px; opacity: 0.6; }
+    .rtt-bar-wrap { flex: 1; height: 5px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
+    .rtt-bar { height: 100%; width: 0%; border-radius: 3px; transition: width 0.6s cubic-bezier(.4,0,.2,1); }
+    .rtt-val { font-size: 13px; font-family: var(--mono); min-width: 90px; text-align: right; color: var(--text-muted); }
+
+    /* Retest button */
+    .btn-retest {
+      display: flex; align-items: center; gap: 5px; font-size: 12px; padding: 5px 12px;
+      background: var(--accent-dim); color: var(--accent);
+      border: 1px solid rgba(124,108,248,0.25); border-radius: var(--radius-sm);
+      cursor: pointer; font-family: inherit; transition: background .15s, border-color .15s;
+    }
+    .btn-retest:hover { background: rgba(124,108,248,0.25); border-color: rgba(124,108,248,0.4); }
+    .btn-retest i { font-size: 13px; }
+    .btn-retest.spinning i { animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Tools */
+    .tools-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+    .tool-link {
+      display: flex; align-items: center; gap: 5px; font-size: 12px; padding: 6px 14px;
+      border: 1px solid var(--border); border-radius: 20px; color: var(--text-secondary);
+      text-decoration: none; background: var(--bg-card);
+      transition: border-color .15s, color .15s, background .15s;
+    }
+    .tool-link:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+    .tool-link i { font-size: 13px; }
+
+    /* Shimmer */
+    .shimmer {
+      display: inline-block; width: 120px; height: 14px; border-radius: 4px;
+      background: linear-gradient(90deg,rgba(255,255,255,0.05) 25%,rgba(255,255,255,0.1) 50%,rgba(255,255,255,0.05) 75%);
+      background-size: 200% 100%; animation: shimmer 1.5s infinite;
+    }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+
+    /* ── 风险评估 ── */
+    .risk-layout { display: grid; grid-template-columns: 160px 1fr; gap: 20px; align-items: start; }
+    @media(max-width:500px) { .risk-layout { grid-template-columns: 1fr; } }
+    .score-ring-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .score-ring { position: relative; width: 120px; height: 120px; }
+    .score-ring svg { width: 120px; height: 120px; transform: rotate(-90deg); }
+    .score-ring-text { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .score-num { font-size: 28px; font-weight: 700; font-family: var(--mono); line-height: 1; }
+    .score-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .score-title { font-size: 12px; color: var(--text-secondary); text-align: center; }
+    .tag-row { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
+    .tag { font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 500; display: flex; align-items: center; gap: 4px; }
+    .tag i { font-size: 12px; }
+    .tag.clean { background: var(--green-dim); color: var(--green); border: 1px solid rgba(61,220,132,0.2); }
+    .tag.risk  { background: var(--red-dim);   color: var(--red);   border: 1px solid rgba(255,95,87,0.2); }
+    .tag.warn  { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(245,166,35,0.2); }
+    .tag.info  { background: var(--blue-dim);  color: var(--blue);  border: 1px solid rgba(77,166,255,0.2); }
+    .ratio-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .ratio-row:last-child { margin-bottom: 0; }
+    .ratio-label { font-size: 12px; color: var(--text-secondary); width: 70px; flex-shrink: 0; }
+    .ratio-bar-wrap { flex: 1; height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
+    .ratio-bar { height: 100%; border-radius: 3px; transition: width 0.8s cubic-bezier(.4,0,.2,1); }
+    .ratio-val { font-size: 12px; font-family: var(--mono); min-width: 40px; text-align: right; color: var(--text-muted); }
+
+    /* ── IP属性 ── */
+    .attr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media(max-width:500px) { .attr-grid { grid-template-columns: 1fr; } }
+    .attr-item { padding: 10px 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+    .attr-key { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
+    .attr-val { font-size: 13px; font-family: var(--mono); color: var(--text-primary); word-break: break-all; }
+
+    /* ── 黑名单 ── */
+    .bl-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+    .bl-row:last-child { border-bottom: none; }
+    .bl-name { font-size: 13px; color: var(--text-secondary); flex: 1; }
+    .bl-status { font-size: 11px; padding: 2px 9px; border-radius: 20px; font-weight: 500; }
+    .bl-status.listed  { background: var(--red-dim); color: var(--red); border: 1px solid rgba(255,95,87,0.2); }
+    .bl-status.clean   { background: var(--green-dim); color: var(--green); border: 1px solid rgba(61,220,132,0.2); }
+    .bl-status.checking{ background: rgba(255,255,255,0.05); color: var(--text-muted); border: 1px solid var(--border); }
+
+    /* ── 访问统计折线图 ── */
+    .counter-stats { display: flex; gap: 20px; margin-bottom: 16px; }
+    .counter-stat { flex: 1; }
+    .counter-stat-val { font-size: 24px; font-weight: 700; font-family: var(--mono); color: var(--text-primary); }
+    .counter-stat-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .chart-wrap { position: relative; width: 100%; height: 100px; }
+    .chart-wrap canvas { width: 100% !important; }
+    .chart-legend { display: flex; gap: 16px; margin-top: 10px; }
+    .chart-legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-secondary); }
+    .chart-legend-dot { width: 8px; height: 2px; border-radius: 1px; }
+
+    /* ── 隐私模式按钮 ── */
+    #privacy-btn {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 14px; border-radius: 20px; font-size: 12px; font-family: inherit;
+      background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+      color: var(--text-secondary); cursor: pointer;
+      transition: background .2s, border-color .2s, color .2s;
+    }
+    #privacy-btn:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); color: var(--text-primary); }
+    #privacy-btn.active { background: rgba(124,108,248,0.15); border-color: rgba(124,108,248,0.4); color: var(--accent); }
+    #privacy-btn i { font-size: 14px; }
+
+    /* 模糊遮罩：给所有 IP 相关文本加 blur */
+    .privacy-on .ip-value,
+    .privacy-on .ip-meta span,
+    .privacy-on .attr-val,
+    .privacy-on .bl-detail,
+    .privacy-on #v4-addr,
+    .privacy-on #v6-addr,
+    .privacy-on #v4-loc, .privacy-on #v4-isp, .privacy-on #v4-tz,
+    .privacy-on #v6-loc, .privacy-on #v6-isp, .privacy-on #v6-type,
+    .privacy-on .out-ip,
+    .privacy-on .out-loc,
+    .privacy-on #outlet-verdict {
+      filter: blur(6px);
+      user-select: none;
+      transition: filter .3s ease;
+    }
+    .privacy-on .ip-value:hover,
+    .privacy-on .ip-meta span:hover,
+    .privacy-on .attr-val:hover,
+    .privacy-on .out-ip:hover,
+    .privacy-on .out-loc:hover {
+      filter: blur(0px);
+    }
+
+    /* ── 视频播放器按钮（右侧固定） ── */
+    #video-btn {
+      position: fixed; right: 20px; bottom: 24px; z-index: 1000;
+      width: 46px; height: 46px; border-radius: 50%;
+      background: rgba(20,20,36,0.85); backdrop-filter: blur(12px);
+      border: 1px solid rgba(61,220,132,0.35); color: #3ddc84;
+      font-size: 20px; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: border-color .2s, box-shadow .2s, transform .15s;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    }
+    #video-btn:hover { border-color: #3ddc84; box-shadow: 0 4px 24px rgba(61,220,132,0.3); transform: scale(1.07); }
+    #video-btn.active { background: rgba(61,220,132,0.15); border-color: #3ddc84; box-shadow: 0 0 0 3px rgba(61,220,132,0.15), 0 4px 20px rgba(0,0,0,0.4); }
+
+    /* 视频播放器面板 */
+    #video-player {
+      position: fixed; right: 16px; bottom: 80px; z-index: 999;
+      width: 360px; background: rgba(12,12,22,0.95); backdrop-filter: blur(24px);
+      border: 1px solid rgba(61,220,132,0.2); border-radius: 16px;
+      overflow: hidden; box-shadow: 0 8px 40px rgba(0,0,0,0.7);
+      transform: translateY(16px) scale(0.96); opacity: 0; pointer-events: none;
+      transition: transform .28s cubic-bezier(.4,0,.2,1), opacity .28s;
+    }
+    #video-player.open { transform: translateY(0) scale(1); opacity: 1; pointer-events: all; }
+
+    .vp-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .vp-title { font-size: 13px; font-weight: 600; color: var(--text-primary); display:flex; align-items:center; gap:7px; }
+    .vp-title i { color: #3ddc84; font-size: 15px; }
+    .vp-close { color: var(--text-muted); cursor:pointer; font-size:16px; padding:3px; transition:color .15s; }
+    .vp-close:hover { color: var(--text-primary); }
+
+    .vp-screen {
+      position: relative; width: 100%; background: #000;
+      aspect-ratio: 16/9;
+    }
+    #vp-video { width:100%; height:100%; display:block; object-fit:contain; }
+    .vp-overlay {
+      position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+      background:rgba(0,0,0,0.45); opacity:1; transition:opacity .2s; pointer-events:none;
+    }
+    .vp-screen.started .vp-overlay { opacity:0; }
+    .vp-big-play {
+      width:54px; height:54px; border-radius:50%;
+      background:rgba(61,220,132,0.2); border:2px solid rgba(61,220,132,0.6);
+      display:flex; align-items:center; justify-content:center;
+      color:#3ddc84; font-size:22px; cursor:pointer; pointer-events:all;
+      transition:background .15s, transform .15s;
+    }
+    .vp-big-play:hover { background:rgba(61,220,132,0.35); transform:scale(1.08); }
+
+    .vp-controls {
+      padding: 10px 14px 12px; display:flex; flex-direction:column; gap:8px;
+    }
+    .vp-progress-wrap {
+      height: 4px; background: rgba(255,255,255,0.08); border-radius:2px; cursor:pointer; position:relative;
+    }
+    .vp-progress-wrap:hover { height: 6px; margin:-1px 0; }
+    .vp-progress-track { height:100%; background:#3ddc84; border-radius:2px; width:0%; transition:width .3s linear; }
+    .vp-row { display:flex; align-items:center; justify-content:space-between; }
+    .vp-times { font-size:11px; font-family:var(--mono); color:var(--text-muted); }
+    .vp-btns { display:flex; align-items:center; gap:4px; }
+    .vp-ctrl {
+      background:none; border:none; color:var(--text-secondary); font-size:16px;
+      cursor:pointer; padding:5px 7px; border-radius:6px; transition:color .15s, background .15s;
+      font-family:inherit;
+    }
+    .vp-ctrl:hover { color:#3ddc84; background:rgba(61,220,132,0.1); }
+    .vp-ctrl.main { font-size:20px; color:var(--text-primary); }
+    .vp-ctrl.main:hover { color:#3ddc84; }
+    .vp-vol-wrap { display:flex; align-items:center; gap:6px; }
+    .vp-vol {
+      width:70px; -webkit-appearance:none; appearance:none;
+      height:3px; background:rgba(255,255,255,0.1); border-radius:2px; outline:none; cursor:pointer;
+    }
+    .vp-vol::-webkit-slider-thumb { -webkit-appearance:none; width:11px; height:11px; border-radius:50%; background:#3ddc84; cursor:pointer; }
+    .vp-speed {
+      font-size:11px; padding:3px 7px; border-radius:5px;
+      background:rgba(255,255,255,0.06); border:1px solid var(--border);
+      color:var(--text-secondary); cursor:pointer; font-family:var(--mono);
+    }
+    .vp-speed:hover { border-color:#3ddc84; color:#3ddc84; }
+
+    .vp-url-row {
+      padding: 0 14px 12px; display:flex; gap:6px;
+    }
+    .vp-url-input {
+      flex:1; background:rgba(255,255,255,0.05); border:1px solid var(--border);
+      border-radius:7px; padding:6px 9px; font-size:11px; color:var(--text-primary);
+      font-family:var(--mono); outline:none;
+    }
+    .vp-url-input:focus { border-color:#3ddc84; }
+    .vp-url-input::placeholder { color:var(--text-muted); }
+    .vp-url-btn {
+      padding:6px 11px; background:rgba(61,220,132,0.12); color:#3ddc84;
+      border:1px solid rgba(61,220,132,0.3); border-radius:7px;
+      font-size:11px; cursor:pointer; white-space:nowrap; transition:background .15s;
+    }
+    .vp-url-btn:hover { background:rgba(61,220,132,0.25); }
+
+    /* Footer */
+    .footer { margin-top: 32px; text-align: center; font-size: 12px; color: var(--text-muted); }
+    .footer span { opacity: 0.5; }
+
+    /* ── 友情链接 ── */
+    .friend-links { margin-top: 28px; }
+    .friend-links-title {
+      font-size: 11px; color: var(--text-muted); text-transform: uppercase;
+      letter-spacing: 1px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+    }
+    .friend-links-title::before,.friend-links-title::after {
+      content:""; flex:1; height:1px; background:var(--border);
+    }
+    .friend-links-grid {
+      display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
+    }
+    .friend-link-item {
+      display: flex; align-items: center; gap: 7px;
+      padding: 8px 16px; border-radius: 24px;
+      border: 1px solid var(--border); background: var(--bg-card);
+      color: var(--text-secondary); text-decoration: none; font-size: 13px;
+      transition: border-color .2s, color .2s, background .2s, transform .15s;
+      position: relative; overflow: hidden;
+    }
+    .friend-link-item::before {
+      content:""; position:absolute; inset:0;
+      background: linear-gradient(135deg,rgba(124,108,248,0.08),transparent);
+      opacity:0; transition: opacity .2s;
+    }
+    .friend-link-item:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); transform: translateY(-2px); }
+    .friend-link-item:hover::before { opacity:1; }
+    .friend-link-item .fl-favicon { width:16px; height:16px; border-radius:3px; object-fit:cover; }
+    .friend-link-item .fl-icon { font-size:15px; opacity:0.6; }
+    .friend-link-item.empty {
+      border-style: dashed; opacity: 0.45; cursor: default; pointer-events: none;
+    }
+
+    /* ── 音乐播放器 ── */
+    #music-btn {
+      position: fixed; left: 20px; bottom: 24px; z-index: 1000;
+      width: 46px; height: 46px; border-radius: 50%;
+      background: rgba(20,20,36,0.85); backdrop-filter: blur(12px);
+      border: 1px solid rgba(124,108,248,0.35); color: var(--accent);
+      font-size: 20px; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: border-color .2s, box-shadow .2s, transform .15s;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    }
+    #music-btn:hover { border-color: var(--accent); box-shadow: 0 4px 24px rgba(124,108,248,0.3); transform: scale(1.07); }
+    #music-btn.playing { animation: pulse-ring 2s ease infinite; }
+    @keyframes pulse-ring {
+      0%,100% { box-shadow: 0 0 0 0 rgba(124,108,248,0.4), 0 4px 20px rgba(0,0,0,0.4); }
+      50%      { box-shadow: 0 0 0 8px rgba(124,108,248,0), 0 4px 20px rgba(0,0,0,0.4); }
+    }
+    #music-btn .btn-note { transition: transform .3s; }
+    #music-btn.playing .btn-note { animation: spin-note 3s linear infinite; }
+    @keyframes spin-note { to { transform: rotate(360deg); } }
+
+    #music-player {
+      position: fixed; left: 16px; bottom: 80px; z-index: 999;
+      width: 300px; background: rgba(16,16,28,0.92); backdrop-filter: blur(20px);
+      border: 1px solid rgba(124,108,248,0.2); border-radius: 16px;
+      padding: 18px; box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+      transform: translateY(12px) scale(0.96); opacity: 0; pointer-events: none;
+      transition: transform .25s cubic-bezier(.4,0,.2,1), opacity .25s;
+    }
+    #music-player.open { transform: translateY(0) scale(1); opacity: 1; pointer-events: all; }
+    .mp-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+    .mp-title-wrap { flex:1; min-width:0; }
+    .mp-song { font-size:13px; font-weight:600; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .mp-artist { font-size:11px; color:var(--text-muted); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .mp-close { font-size:16px; color:var(--text-muted); cursor:pointer; padding:4px; transition:color .15s; flex-shrink:0; }
+    .mp-close:hover { color:var(--text-primary); }
+    .mp-art {
+      width:100%; aspect-ratio:1; border-radius:10px; overflow:hidden;
+      background:rgba(124,108,248,0.12); margin-bottom:14px;
+      display:flex; align-items:center; justify-content:center; position:relative;
+    }
+    .mp-art img { width:100%; height:100%; object-fit:cover; border-radius:10px; }
+    .mp-art .art-placeholder { font-size:40px; opacity:0.3; }
+    .mp-art .art-spin {
+      position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+      font-size:36px; opacity:0.2;
+    }
+    .mp-art.spinning .art-spin { animation: spin-art 8s linear infinite; }
+    @keyframes spin-art { to { transform:rotate(360deg); } }
+    .mp-progress-wrap { position:relative; height:3px; background:rgba(255,255,255,0.08); border-radius:2px; margin-bottom:10px; cursor:pointer; }
+    .mp-progress { height:100%; background:var(--accent); border-radius:2px; width:0%; transition:width .5s linear; }
+    .mp-times { display:flex; justify-content:space-between; font-size:10px; color:var(--text-muted); font-family:var(--mono); margin-bottom:12px; }
+    .mp-controls { display:flex; align-items:center; justify-content:center; gap:18px; margin-bottom:14px; }
+    .mp-ctrl { background:none; border:none; color:var(--text-secondary); font-size:18px; cursor:pointer; padding:4px; transition:color .15s, transform .1s; }
+    .mp-ctrl:hover { color:var(--accent); }
+    .mp-ctrl.main { font-size:28px; color:var(--text-primary); }
+    .mp-ctrl.main:hover { color:var(--accent); transform:scale(1.1); }
+    .mp-vol-wrap { display:flex; align-items:center; gap:8px; }
+    .mp-vol-icon { font-size:14px; color:var(--text-muted); }
+    .mp-vol { flex:1; -webkit-appearance:none; appearance:none; height:3px; background:rgba(255,255,255,0.1); border-radius:2px; outline:none; cursor:pointer; }
+    .mp-vol::-webkit-slider-thumb { -webkit-appearance:none; width:12px; height:12px; border-radius:50%; background:var(--accent); cursor:pointer; }
+    .mp-playlist { margin-top:14px; border-top:1px solid var(--border); padding-top:10px; max-height:150px; overflow-y:auto; }
+    .mp-playlist::-webkit-scrollbar { width:3px; }
+    .mp-playlist::-webkit-scrollbar-thumb { background:rgba(124,108,248,0.3); border-radius:2px; }
+    .mp-pl-item {
+      display:flex; align-items:center; gap:8px; padding:6px 4px;
+      border-radius:6px; cursor:pointer; transition:background .15s;
+      font-size:12px; color:var(--text-secondary);
+    }
+    .mp-pl-item:hover { background:rgba(255,255,255,0.04); }
+    .mp-pl-item.active { color:var(--accent); }
+    .mp-pl-item .pl-num { width:18px; text-align:center; font-size:11px; color:var(--text-muted); flex-shrink:0; }
+    .mp-pl-item.active .pl-num { color:var(--accent); }
+    .mp-pl-item .pl-name { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .mp-pl-item .pl-dur { font-size:10px; color:var(--text-muted); font-family:var(--mono); flex-shrink:0; }
+    .mp-url-wrap { margin-top:10px; display:flex; gap:6px; }
+    .mp-url-input {
+      flex:1; background:rgba(255,255,255,0.05); border:1px solid var(--border);
+      border-radius:6px; padding:5px 8px; font-size:11px; color:var(--text-primary);
+      font-family:var(--mono); outline:none;
+    }
+    .mp-url-input:focus { border-color:var(--accent); }
+    .mp-url-input::placeholder { color:var(--text-muted); }
+    .mp-url-btn {
+      padding:5px 10px; background:var(--accent-dim); color:var(--accent);
+      border:1px solid rgba(124,108,248,0.3); border-radius:6px;
+      font-size:11px; cursor:pointer; white-space:nowrap; transition:background .15s;
+    }
+    .mp-url-btn:hover { background:rgba(124,108,248,0.25); }
+    /* ── Live2D 看板娘 ── */
+    #live2d-btn {
+      position: fixed; left: 20px; bottom: 78px; z-index: 1000;
+      width: 46px; height: 46px; border-radius: 50%;
+      background: rgba(20,20,36,0.85); backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,182,193,0.4); color: #ffb6c1;
+      font-size: 20px; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: border-color .2s, box-shadow .2s, transform .15s;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    }
+    #live2d-btn:hover { border-color: #ffb6c1; box-shadow: 0 4px 24px rgba(255,182,193,0.3); transform: scale(1.07); }
+    #live2d-btn.active { background: rgba(255,182,193,0.12); border-color: #ffb6c1; box-shadow: 0 0 0 3px rgba(255,182,193,0.15), 0 4px 20px rgba(0,0,0,0.4); }
+
+    #live2d-wrap {
+      position: fixed; left: 16px; bottom: 132px; z-index: 998;
+      width: 220px; height: 390px;
+      background: transparent;
+      border-radius: 16px;
+      transform: translateX(-12px) scale(0.95); opacity: 0; pointer-events: none;
+      transition: transform .3s cubic-bezier(.4,0,.2,1), opacity .3s, left .3s cubic-bezier(.4,0,.2,1);
+      filter: drop-shadow(0 12px 32px rgba(0,0,0,0.5));
+    }
+    #live2d-wrap.open { transform: translateX(0) scale(1); opacity: 1; pointer-events: all; }
+
+    #live2d-wrap iframe {
+      width: 100%; height: 100%; border: 0;
+      background: transparent; display: block; border-radius: 16px;
+    }
+
+    /* 拖拽时禁止文字选中 */
+    #live2d-wrap.dragging { user-select: none; transition: none; }
+  </style>
+</head>
+<body>
+<video id="bg-video" autoplay muted loop playsinline src="https://mm.py.kg/vd/Hatsune%20Miku.mp4"></video>
+<div id="bg-overlay"></div>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <h1>Meizizi观测</h1>
+      <p>IP 检测 · 延迟测试 · 连通性分析</p>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button id="privacy-btn" onclick="togglePrivacy()" title="隐藏/显示 IP 信息">
+        <i class="ti ti-eye" id="privacy-icon"></i>
+        <span id="privacy-label">隐私模式</span>
+      </button>
+      <div class="header-badge">
+        <div class="dot"></div>
+        <span id="header-time">加载中</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- IP Cards -->
+  <div class="ip-grid">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="ti ti-world"></i> IPv4</div>
+        <span class="status-badge" id="v4-badge">检测中</span>
+      </div>
+      <div class="ip-value" id="v4-addr"><span class="shimmer"></span></div>
+      <div class="ip-meta"><i class="ti ti-map-pin"></i><span id="v4-loc">—</span></div>
+      <div class="ip-meta"><i class="ti ti-building-skyscraper"></i><span id="v4-isp">—</span></div>
+      <div class="ip-meta"><i class="ti ti-clock"></i><span id="v4-tz">—</span></div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="ti ti-world-www"></i> IPv6</div>
+        <span class="status-badge" id="v6-badge">检测中</span>
+      </div>
+      <div class="ip-value" id="v6-addr" style="font-size:13px;"><span class="shimmer"></span></div>
+      <div class="ip-meta"><i class="ti ti-map-pin"></i><span id="v6-loc">—</span></div>
+      <div class="ip-meta"><i class="ti ti-building-skyscraper"></i><span id="v6-isp">—</span></div>
+      <div class="ip-meta"><i class="ti ti-network"></i><span id="v6-type">—</span></div>
+    </div>
+  </div>
+
+  <!-- 出口对比 -->
+  <div class="card" style="margin-bottom:14px;">
+    <div class="card-header">
+      <div class="card-title"><i class="ti ti-arrows-exchange"></i> 出口 IP 对比</div>
+      <button class="btn-retest" id="outlet-retest-btn" onclick="runOutlet()">
+        <i class="ti ti-refresh" id="outlet-retest-icon"></i> 重测
+      </button>
+    </div>
+    <div id="outlet-list"></div>
+    <div id="outlet-verdict" style="margin-top:12px;display:none;font-size:13px;padding:10px 14px;border-radius:8px;"></div>
+  </div>
+
+  <!-- IP 风险评估 -->
+  <div class="card" style="margin-bottom:14px;">
+    <div class="card-header">
+      <div class="card-title"><i class="ti ti-shield-exclamation"></i> IP 风险评估</div>
+      <button class="btn-retest" id="risk-btn" onclick="runRisk()">
+        <i class="ti ti-refresh" id="risk-icon"></i> 重测
+      </button>
+    </div>
+    <div class="risk-layout">
+      <div class="score-ring-wrap">
+        <div class="score-ring">
+          <svg viewBox="0 0 120 120">
+            <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="10"/>
+            <circle id="risk-ring" cx="60" cy="60" r="50" fill="none" stroke="#3ddc84" stroke-width="10"
+              stroke-dasharray="314" stroke-dashoffset="314" stroke-linecap="round"
+              style="transition:stroke-dashoffset 1s cubic-bezier(.4,0,.2,1),stroke 0.5s;"/>
+          </svg>
+          <div class="score-ring-text">
+            <div class="score-num" id="risk-num" style="color:#3ddc84;">—</div>
+            <div class="score-label">/ 100</div>
+          </div>
+        </div>
+        <div class="score-title" id="risk-verdict">检测中...</div>
+      </div>
+      <div>
+        <div class="tag-row" id="risk-tags"><span class="shimmer"></span></div>
+        <div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">流量类型比例</div>
+          <div class="ratio-row">
+            <div class="ratio-label">人类流量</div>
+            <div class="ratio-bar-wrap"><div class="ratio-bar" id="bar-human" style="width:0%;background:var(--green);"></div></div>
+            <div class="ratio-val" id="val-human">—</div>
+          </div>
+          <div class="ratio-row">
+            <div class="ratio-label">爬虫/机器</div>
+            <div class="ratio-bar-wrap"><div class="ratio-bar" id="bar-bot" style="width:0%;background:var(--amber);"></div></div>
+            <div class="ratio-val" id="val-bot">—</div>
+          </div>
+          <div class="ratio-row">
+            <div class="ratio-label">恶意流量</div>
+            <div class="ratio-bar-wrap"><div class="ratio-bar" id="bar-mal" style="width:0%;background:var(--red);"></div></div>
+            <div class="ratio-val" id="val-mal">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- IP 属性详情 -->
+  <div class="card" style="margin-bottom:14px;">
+    <div class="card-header">
+      <div class="card-title"><i class="ti ti-info-circle"></i> IP 属性详情</div>
+      <span class="status-badge" id="attr-badge">检测中</span>
+    </div>
+    <div class="attr-grid" id="attr-grid">
+      <div class="attr-item"><div class="attr-key">ASN 编号</div><div class="attr-val"><span class="shimmer"></span></div></div>
+      <div class="attr-item"><div class="attr-key">运营商组织</div><div class="attr-val"><span class="shimmer"></span></div></div>
+      <div class="attr-item"><div class="attr-key">IP 类型</div><div class="attr-val"><span class="shimmer"></span></div></div>
+      <div class="attr-item"><div class="attr-key">使用类型</div><div class="attr-val"><span class="shimmer"></span></div></div>
+      <div class="attr-item"><div class="attr-key">代理/VPN</div><div class="attr-val"><span class="shimmer"></span></div></div>
+      <div class="attr-item"><div class="attr-key">Tor 出口</div><div class="attr-val"><span class="shimmer"></span></div></div>
+      <div class="attr-item"><div class="attr-key">数据中心</div><div class="attr-val"><span class="shimmer"></span></div></div>
+      <div class="attr-item"><div class="attr-key">注册国家</div><div class="attr-val"><span class="shimmer"></span></div></div>
+    </div>
+  </div>
+
+  <!-- 黑名单检测 -->
+  <div class="card" style="margin-bottom:14px;">
+    <div class="card-header">
+      <div class="card-title"><i class="ti ti-list-check"></i> 黑名单检测</div>
+      <span class="status-badge" id="bl-badge">检测中</span>
+    </div>
+    <div id="bl-list">
+      <div class="bl-row"><div class="bl-name"><span class="shimmer" style="width:160px;"></span></div><div class="bl-status checking">检测中</div></div>
+      <div class="bl-row"><div class="bl-name"><span class="shimmer" style="width:140px;"></span></div><div class="bl-status checking">检测中</div></div>
+      <div class="bl-row"><div class="bl-name"><span class="shimmer" style="width:170px;"></span></div><div class="bl-status checking">检测中</div></div>
+    </div>
+  </div>
+
+  <!-- RTT -->
+  <div class="card" style="margin-bottom:14px;">
+    <div class="card-header">
+      <div class="card-title"><i class="ti ti-activity"></i> 前端连通性 RTT 参考</div>
+      <button class="btn-retest" id="retest-btn" onclick="runPing()">
+        <i class="ti ti-refresh" id="retest-icon"></i> 重测
+      </button>
+    </div>
+    <div id="ping-list"></div>
+  </div>
+
+  <!-- Tools -->
+  <div class="card" style="margin-bottom:14px;">
+    <div class="card-header" style="margin-bottom:12px;">
+      <div class="card-title"><i class="ti ti-tool"></i> 在线检测工具</div>
+    </div>
+    <div class="tools-grid" id="tool-links"></div>
+  </div>
+
+  <!-- 访问统计折线图 -->
+  <div class="card">
+    <div class="card-header" style="margin-bottom:4px;">
+      <div class="card-title"><i class="ti ti-chart-line"></i> 访问统计</div>
+      <span class="status-badge ok" id="counter-badge">本地计数</span>
+    </div>
+    <div class="counter-stats">
+      <div class="counter-stat">
+        <div class="counter-stat-val" id="stat-today">—</div>
+        <div class="counter-stat-label">今日访问</div>
+      </div>
+      <div class="counter-stat">
+        <div class="counter-stat-val" id="stat-week">—</div>
+        <div class="counter-stat-label">本周访问</div>
+      </div>
+      <div class="counter-stat">
+        <div class="counter-stat-val" id="stat-total">—</div>
+        <div class="counter-stat-label">累计访问</div>
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="visit-chart" height="100"></canvas>
+    </div>
+    <div class="chart-legend">
+      <div class="chart-legend-item">
+        <div class="chart-legend-dot" style="background:#7c6cf8;"></div>本周每日访问
+      </div>
+      <div class="chart-legend-item">
+        <div class="chart-legend-dot" style="background:#3ddc84;"></div>今日
+      </div>
+    </div>
+  </div>
+
+  <!-- 友情链接 -->
+  <div class="friend-links">
+    <div class="friend-links-title">友情链接</div>
+    <div class="friend-links-grid">
+      <a class="friend-link-item" href="https://nz.562427418.xyz/" target="_blank" rel="noopener">
+        <i class="ti ti-star fl-icon"></i>
+        <span>562427418</span>
+      </a>
+      <a class="friend-link-item" href="https://live2d.honkai.ct8.pl/" target="_blank" rel="noopener">
+        <i class="ti ti-mood-smile fl-icon"></i>
+        <span>Honkai Live2D</span>
+      </a>
+      <a class="friend-link-item" href="https://x.mei.cc.cd/" target="_blank" rel="noopener">
+        <i class="ti ti-sparkles fl-icon"></i>
+        <span>Mei</span>
+      </a>
+      <!-- 空链接占位，可替换 -->
+      <span class="friend-link-item empty">
+        <i class="ti ti-plus fl-icon"></i>
+        <span>待添加</span>
+      </span>
+      <span class="friend-link-item empty">
+        <i class="ti ti-plus fl-icon"></i>
+        <span>待添加</span>
+      </span>
+      <span class="friend-link-item empty">
+        <i class="ti ti-plus fl-icon"></i>
+        <span>待添加</span>
+      </span>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>Meizizi观测 · 数据仅供参考 · RTT 为前端 fetch 模拟值</span>
+  </div>
+
+</div>
+
+<!-- ── 音乐播放器 ── -->
+<button id="music-btn" title="音乐播放器" onclick="togglePlayer()">
+  <i class="ti ti-music btn-note"></i>
+</button>
+
+<!-- ── Live2D 看板娘按钮 ── -->
+<button id="live2d-btn" title="Live2D 看板娘" onclick="toggleLive2D()">
+  <i class="ti ti-mood-heart"></i>
+</button>
+
+<!-- ── Live2D 面板（无标题栏，纯透明 iframe，可拖拽） ── -->
+<div id="live2d-wrap">
+  <iframe id="live2d-iframe"
+    src="https://live2d.honkai.ct8.pl/live2d_3/"
+    allowtransparency="true"
+    scrolling="no"
+    title="Live2D 看板娘">
+  </iframe>
+</div>
+
+<div id="music-player">
+  <div class="mp-header">
+    <div class="mp-title-wrap">
+      <div class="mp-song" id="mp-song">未播放</div>
+      <div class="mp-artist" id="mp-artist">点击播放列表选择歌曲</div>
+    </div>
+    <span class="mp-close" onclick="togglePlayer()" title="收起">
+      <i class="ti ti-chevron-down"></i>
+    </span>
+  </div>
+
+  <div class="mp-art" id="mp-art">
+    <div class="art-spin"><i class="ti ti-disc"></i></div>
+    <img id="mp-cover" src="" alt="" style="display:none;">
+  </div>
+
+  <div class="mp-progress-wrap" id="mp-progress-wrap">
+    <div class="mp-progress" id="mp-progress"></div>
+  </div>
+  <div class="mp-times">
+    <span id="mp-cur">0:00</span>
+    <span id="mp-dur">0:00</span>
+  </div>
+
+  <div class="mp-controls">
+    <button class="mp-ctrl" onclick="mpPrev()" title="上一首"><i class="ti ti-player-skip-back"></i></button>
+    <button class="mp-ctrl" onclick="mpToggleLoop()" id="mp-loop-btn" title="循环模式"><i class="ti ti-repeat"></i></button>
+    <button class="mp-ctrl main" onclick="mpPlayPause()" id="mp-play-btn" title="播放/暂停">
+      <i class="ti ti-player-play" id="mp-play-icon"></i>
+    </button>
+    <button class="mp-ctrl" onclick="mpToggleShuffle()" id="mp-shuffle-btn" title="随机播放"><i class="ti ti-arrows-shuffle"></i></button>
+    <button class="mp-ctrl" onclick="mpNext()" title="下一首"><i class="ti ti-player-skip-forward"></i></button>
+  </div>
+
+  <div class="mp-vol-wrap">
+    <i class="ti ti-volume mp-vol-icon"></i>
+    <input type="range" class="mp-vol" id="mp-vol" min="0" max="1" step="0.01" value="0.7" oninput="mpSetVol(this.value)">
+  </div>
+
+  <div class="mp-playlist" id="mp-playlist"></div>
+
+  <div class="mp-url-wrap">
+    <input class="mp-url-input" id="mp-url-input" placeholder="粘贴音频直链或网易云/B站链接…">
+    <button class="mp-url-btn" onclick="mpAddUrl()">添加</button>
+  </div>
+</div>
+
+<!-- ── 视频播放器按钮（右侧） ── -->
+<button id="video-btn" onclick="toggleVideoPlayer()" title="视频播放器">
+  <i class="ti ti-player-play"></i>
+</button>
+
+<!-- 视频播放器面板 -->
+<div id="video-player">
+  <div class="vp-header">
+    <div class="vp-title"><i class="ti ti-device-tv"></i> 视频播放器</div>
+    <span class="vp-close" onclick="toggleVideoPlayer()"><i class="ti ti-x"></i></span>
+  </div>
+
+  <div class="vp-screen" id="vp-screen">
+    <video id="vp-video" preload="none" playsinline></video>
+    <iframe id="vp-iframe" style="display:none;width:100%;height:100%;border:none;" allowfullscreen allow="autoplay; encrypted-media; picture-in-picture"></iframe>
+    <div class="vp-overlay" id="vp-overlay">
+      <div class="vp-big-play" onclick="vpPlayPause()">
+        <i class="ti ti-player-play"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="vp-controls">
+    <!-- 进度条 -->
+    <div class="vp-progress-wrap" id="vp-prog-wrap">
+      <div class="vp-progress-track" id="vp-prog"></div>
+    </div>
+
+    <!-- 控制行 -->
+    <div class="vp-row">
+      <div class="vp-btns">
+        <button class="vp-ctrl main" onclick="vpPlayPause()" id="vp-play-btn" title="播放/暂停">
+          <i class="ti ti-player-play" id="vp-play-icon"></i>
+        </button>
+        <button class="vp-ctrl" onclick="vpSkip(-10)" title="后退10s"><i class="ti ti-rewind-10"></i></button>
+        <button class="vp-ctrl" onclick="vpSkip(10)" title="前进10s"><i class="ti ti-forward-10"></i></button>
+        <div class="vp-vol-wrap">
+          <i class="ti ti-volume vp-ctrl" style="font-size:14px;padding:0;" onclick="vpToggleMute()" id="vp-vol-icon"></i>
+          <input type="range" class="vp-vol" id="vp-vol" min="0" max="1" step="0.02" value="0.8" oninput="vpSetVol(this.value)">
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="vp-times"><span id="vp-cur">0:00</span> / <span id="vp-dur">--:--</span></span>
+        <button class="vp-speed" id="vp-speed-btn" onclick="vpCycleSpeed()" title="播放速度">1×</button>
+        <button class="vp-ctrl" onclick="vpFullscreen()" title="全屏" style="font-size:14px;"><i class="ti ti-maximize"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="vp-url-row">
+    <input class="vp-url-input" id="vp-url-input" placeholder="B站 / YouTube 链接，或视频直链（.mp4）">
+    <button class="vp-url-btn" onclick="vpLoadUrl()">播放</button>
+  </div>
+  <div style="padding:0 14px 12px;display:flex;gap:6px;">
+    <button class="vp-url-btn" id="vp-default-btn" onclick="vpExitExternal()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;background:rgba(61,220,132,0.06);border-color:rgba(61,220,132,0.2);color:var(--text-muted);font-size:11px;">
+      <i class="ti ti-home" style="font-size:12px;"></i> 播放默认视频
+    </button>
+  </div>
+</div>
+<script>
+(function(){
+  const audio = new Audio();
+  audio.volume = 0.7;
+
+  // 多个可用的第三方网易云 API（轮询直到成功）
+  const API_HOSTS = [
+    "https://netease-cloud-music-api-five-ivory.vercel.app",
+    "https://ncm.qier222.com",
+    "https://api.injahow.cn",
+  ];
+
+  const ALBUM_ID = 373093919;
+
+  let playlist = [];   // { id, name, artist, cover, src }
+  let curIdx = 0, playing = false, loopMode = 0, shuffle = false;
+
+  const audioBtn = document.getElementById("music-btn");
+  const player   = document.getElementById("music-player");
+  const songEl   = document.getElementById("mp-song");
+  const artistEl = document.getElementById("mp-artist");
+  const artEl    = document.getElementById("mp-art");
+  const coverEl  = document.getElementById("mp-cover");
+  const progress = document.getElementById("mp-progress");
+  const curEl    = document.getElementById("mp-cur");
+  const durEl    = document.getElementById("mp-dur");
+  const playIcon = document.getElementById("mp-play-icon");
+  const loopBtn  = document.getElementById("mp-loop-btn");
+  const shuffBtn = document.getElementById("mp-shuffle-btn");
+  const plEl     = document.getElementById("mp-playlist");
+
+  /* ── 工具 ── */
+  function fmt(s){
+    if(!isFinite(s)||s<0) return "0:00";
+    const m=Math.floor(s/60), ss=Math.floor(s%60);
+    return m+":"+(ss<10?"0":"")+ss;
+  }
+
+  /* ── 尝试多个 API host 获取专辑曲目 ── */
+  async function fetchAlbum(){
+    songEl.textContent = "加载专辑中…";
+    artistEl.textContent = "请稍候";
+
+    // 方案A：各 host 的 /album 接口
+    for(const host of API_HOSTS){
+      try{
+        const r = await fetch(`${host}/album?id=${ALBUM_ID}`,{signal:AbortSignal.timeout(6000)});
+        const j = await r.json();
+        const songs = j.songs || j.album?.songs;
+        if(songs && songs.length){
+          playlist = songs.map(s=>({
+            id:     s.id,
+            name:   s.name,
+            artist: (s.ar||s.artists||[]).map(a=>a.name).join(" / "),
+            cover:  (s.al||s.album||{}).picUrl || "",
+            src:    null,   // 按需加载
+          }));
+          renderPlaylist();
+          await loadTrack(0, false); // await：确保 audio.src 设好后才返回
+          return;
+        }
+      }catch(e){}
+    }
+
+    // 方案B：injahow 专有格式
+    try{
+      const r = await fetch(`https://api.injahow.cn/meting/?type=album&id=${ALBUM_ID}&r=json`,{signal:AbortSignal.timeout(6000)});
+      const j = await r.json();
+      if(Array.isArray(j) && j.length){
+        playlist = j.map(s=>({
+          id:     s.id,
+          name:   s.name,
+          artist: s.artist,
+          cover:  s.pic,
+          src:    s.url,   // meting 直接返回 url
+        }));
+        renderPlaylist();
+        await loadTrack(0, false);
+        return;
+      }
+    }catch(e){}
+
+    // 方案C：Meting API（兼容性最广）
+    try{
+      const r = await fetch(`https://api.i-meto.com/meting/api?server=netease&type=album&id=${ALBUM_ID}&r=json`,{signal:AbortSignal.timeout(6000)});
+      const j = await r.json();
+      if(Array.isArray(j) && j.length){
+        playlist = j.map(s=>({
+          id:     s.id,
+          name:   s.name,
+          artist: s.artist,
+          cover:  s.pic,
+          src:    s.url,
+        }));
+        renderPlaylist();
+        await loadTrack(0, false);
+        return;
+      }
+    }catch(e){}
+
+    songEl.textContent = "专辑加载失败";
+    artistEl.textContent = "可在下方输入框粘贴音频直链";
+    plEl.innerHTML = `<div style="font-size:12px;color:var(--text-muted);padding:8px 4px;text-align:center;">请在下方粘贴音频直链播放</div>`;
+  }
+
+  /* ── 获取单曲播放链接（按需，不预加载全部） ── */
+  async function resolveUrl(track){
+    if(track.src) return track.src;
+
+    // 多 host 顺序尝试 /song/url
+    for(const host of API_HOSTS){
+      try{
+        const r = await fetch(`${host}/song/url?id=${track.id}&br=128000`,{signal:AbortSignal.timeout(6000)});
+        const j = await r.json();
+        const url = (j.data||[])[0]?.url;
+        if(url){ track.src=url; return url; }
+      }catch(e){}
+    }
+
+    // fallback: injahow meting 单曲
+    try{
+      const r = await fetch(`https://api.injahow.cn/meting/?type=song&id=${track.id}&r=json`,{signal:AbortSignal.timeout(5000)});
+      const j = await r.json();
+      const url = Array.isArray(j) ? j[0]?.url : j?.url;
+      if(url){ track.src=url; return url; }
+    }catch(e){}
+
+    return null;
+  }
+
+  /* ── 渲染播放列表 ── */
+  function renderPlaylist(){
+    plEl.innerHTML = playlist.map((t,i)=>`
+      <div class="mp-pl-item${i===curIdx?" active":""}" onclick="mpGoto(${i})">
+        <span class="pl-num">${i===curIdx&&playing?"▶":i+1}</span>
+        <span class="pl-name">${t.name}${t.artist?" — "+t.artist:""}</span>
+      </div>`).join("");
+  }
+
+  /* ── 加载指定曲目 ── */
+  async function loadTrack(idx, autoplay){
+    curIdx = ((idx % playlist.length) + playlist.length) % playlist.length;
+    const t = playlist[curIdx];
+
+    songEl.textContent   = t.name   || "未知歌曲";
+    artistEl.textContent = t.artist || "未知歌手";
+    progress.style.width = "0%";
+    curEl.textContent = "0:00";
+    durEl.textContent = "0:00";
+
+    // 封面
+    if(t.cover){
+      coverEl.src = t.cover;
+      coverEl.style.display = "block";
+    } else {
+      coverEl.style.display = "none";
+    }
+    renderPlaylist();
+
+    if(autoplay){
+      songEl.textContent = "获取链接中…";
+    }
+
+    const url = await resolveUrl(t);
+    if(!url){
+      artistEl.textContent = "此曲目无版权/不可播放，自动跳过";
+      if(autoplay){ setTimeout(()=>loadTrack(curIdx+1,true),1500); }
+      return;
+    }
+
+    audio.src = url;
+    audio.load();
+    songEl.textContent = t.name || "未知歌曲";
+    artistEl.textContent = t.artist || "未知歌手";
+
+    if(autoplay) mpPlay();
+  }
+
+  function mpPlay(){
+    audio.play().then(()=>{
+      playing=true;
+      playIcon.className="ti ti-player-pause";
+      audioBtn.classList.add("playing");
+      artEl.classList.add("spinning");
+      renderPlaylist();
+    }).catch(err=>{
+      // 自动播放被拦截，提示用户点击
+      artistEl.textContent = "⚠ 请点击播放按钮开始";
+    });
+  }
+
+  window.togglePlayer = function(){
+    const isOpen = player.classList.toggle("open");
+    // 当音乐播放器展开时，若 live2d 也打开，则将 live2d 向右移动避免遮挡
+    if (window._syncLive2DPosition) window._syncLive2DPosition(isOpen);
+  };
+
+  window.mpPlayPause = function(){
+    if(!playlist.length) return;
+    if(audio.paused||audio.ended){
+      if(!audio.src) loadTrack(curIdx, true);
+      else mpPlay();
+    } else {
+      audio.pause();
+      playing=false;
+      playIcon.className="ti ti-player-play";
+      audioBtn.classList.remove("playing");
+      artEl.classList.remove("spinning");
+      renderPlaylist();
+    }
+  };
+
+  window.mpNext = function(){
+    if(!playlist.length) return;
+    const next = shuffle
+      ? Math.floor(Math.random()*playlist.length)
+      : curIdx+1;
+    loadTrack(next, true);
+  };
+  window.mpPrev = function(){
+    if(!playlist.length) return;
+    loadTrack(curIdx-1, true);
+  };
+  window.mpGoto = function(i){ loadTrack(i, true); };
+
+  window.mpToggleLoop = function(){
+    loopMode = (loopMode+1)%3;
+    const icons  = ["ti-repeat","ti-repeat-once","ti-arrow-right"];
+    const titles = ["列表循环","单曲循环","顺序播放"];
+    loopBtn.innerHTML = `<i class="ti ${icons[loopMode]}"></i>`;
+    loopBtn.title = titles[loopMode];
+    loopBtn.style.color = loopMode>0 ? "var(--accent)" : "";
+    audio.loop = (loopMode===1);
+  };
+
+  window.mpToggleShuffle = function(){
+    shuffle=!shuffle;
+    shuffBtn.style.color = shuffle ? "var(--accent)" : "";
+  };
+
+  window.mpSetVol = function(v){ audio.volume=parseFloat(v); };
+
+  audio.addEventListener("timeupdate",()=>{
+    if(!audio.duration) return;
+    progress.style.width=(audio.currentTime/audio.duration*100)+"%";
+    curEl.textContent=fmt(audio.currentTime);
+    durEl.textContent=fmt(audio.duration);
+  });
+
+  audio.addEventListener("ended",()=>{
+    if(loopMode===1) return;
+    if(loopMode===0||curIdx<playlist.length-1){ loadTrack(curIdx+1,true); }
+    else{
+      playing=false;
+      playIcon.className="ti ti-player-play";
+      audioBtn.classList.remove("playing");
+      artEl.classList.remove("spinning");
+    }
+  });
+
+  audio.addEventListener("error",()=>{
+    if(playlist.length>1){
+      artistEl.textContent="播放失败，跳过…";
+      setTimeout(()=>loadTrack(curIdx+1,true),1000);
+    }
+  });
+
+  document.getElementById("mp-progress-wrap").addEventListener("click",function(e){
+    if(!audio.duration) return;
+    const rect=this.getBoundingClientRect();
+    audio.currentTime=((e.clientX-rect.left)/rect.width)*audio.duration;
+  });
+
+  /* ── 添加自定义直链 ── */
+  window.mpAddUrl = function(){
+    const inp = document.getElementById("mp-url-input");
+    const url = inp.value.trim();
+    if(!url) return;
+    const name = decodeURIComponent(url.split("/").pop().split("?")[0]) || "自定义音频";
+    playlist.push({id:null, name, artist:"自定义", cover:"", src:url});
+    inp.value="";
+    renderPlaylist();
+    loadTrack(playlist.length-1, true);
+  };
+
+  /* ── 初始化：拉取专辑，加载完成后自动播放 ── */
+  // 自动播放核心：audio.src 已设好后调用，处理浏览器拦截
+  let _autoPlayPending = false; // 标记是否有待播放等待用户交互
+
+  function _triggerPlay(){
+    if(!audio.src || playing) return;
+    audio.play().then(()=>{
+      _autoPlayPending = false;
+      playing = true;
+      playIcon.className = "ti ti-player-pause";
+      audioBtn.classList.add("playing");
+      artEl.classList.add("spinning");
+      player.classList.add("open"); // 自动展开面板
+      renderPlaylist();
+    }).catch(()=>{
+      // 浏览器拦截了，等用户首次交互
+      _autoPlayPending = true;
+      artistEl.textContent = "▶ 点击任意位置开始播放";
+    });
+  }
+
+  // 页面任意首次交互时，若有待播放任务则触发
+  function _onFirstInteract(){
+    if(!_autoPlayPending) return;
+    _autoPlayPending = false;
+    _triggerPlay();
+  }
+  ['click','touchstart','keydown'].forEach(ev=>{
+    document.addEventListener(ev, _onFirstInteract, {capture:true, passive:true});
+  });
+
+  fetchAlbum().then(()=>{
+    if(!playlist.length) return;
+    // loadTrack(0, false) 已在 fetchAlbum 里调用，此时 audio.src 可能还没设好
+    // 监听 audio canplay/canplaythrough 确认 src 已加载，再尝试播放
+    if(audio.src){
+      _triggerPlay();
+    } else {
+      // src 还没设好，等 canplay 事件
+      audio.addEventListener('canplay', function onReady(){
+        audio.removeEventListener('canplay', onReady);
+        _triggerPlay();
+      });
+    }
+  });
+})();
+</script>
+
+<script>
+/* ── 隐私模式 ── */
+let privacyOn = false;
+function togglePrivacy(){
+  privacyOn = !privacyOn;
+  document.querySelector('.page').classList.toggle('privacy-on', privacyOn);
+  const btn = document.getElementById('privacy-btn');
+  const icon = document.getElementById('privacy-icon');
+  const label = document.getElementById('privacy-label');
+  btn.classList.toggle('active', privacyOn);
+  icon.className = privacyOn ? 'ti ti-eye-off' : 'ti ti-eye';
+  label.textContent = privacyOn ? '显示信息' : '隐私模式';
+}
+
+/* ── 视频播放器 ── */
+(function(){
+  const DEFAULT_SRC = 'https://live2d.honkai.ct8.pl/vd/1975~2000.mp4';
+
+  const vp       = document.getElementById('vp-video');
+  const panel    = document.getElementById('video-player');
+  const btn      = document.getElementById('video-btn');
+  const screen   = document.getElementById('vp-screen');
+  const overlay  = document.getElementById('vp-overlay');
+  const playIcon = document.getElementById('vp-play-icon');
+  const progEl   = document.getElementById('vp-prog');
+  const progWrap = document.getElementById('vp-prog-wrap');
+  const curEl    = document.getElementById('vp-cur');
+  const durEl    = document.getElementById('vp-dur');
+  const speedBtn = document.getElementById('vp-speed-btn');
+  const volInput = document.getElementById('vp-vol');
+  const volIcon  = document.getElementById('vp-vol-icon');
+  const iframeEl = document.getElementById('vp-iframe');
+
+  const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2];
+  let speedIdx = 2;
+  vp.volume = 0.8;
+
+  // 播放器模式：'default'(默认视频) | 'direct'(外链直链) | 'embed'(B站/YT嵌入)
+  let vpMode = 'default';
+
+  function fmt(s){
+    if(!isFinite(s)||s<0) return '0:00';
+    const m=Math.floor(s/60), ss=Math.floor(s%60);
+    return m+':'+(ss<10?'0':'')+ss;
+  }
+
+  function syncPlayIcon(){
+    playIcon.className = vp.paused ? 'ti ti-player-play' : 'ti ti-player-pause';
+  }
+
+  function syncVolIcon(){
+    volIcon.className = (vp.muted||vp.volume===0)
+      ? 'ti ti-volume-off vp-ctrl'
+      : vp.volume<0.5 ? 'ti ti-volume-2 vp-ctrl' : 'ti ti-volume vp-ctrl';
+    volIcon.style.fontSize='14px'; volIcon.style.padding='0';
+  }
+
+  // 控制栏 dim/undim（iframe 模式下操作无效）
+  function setControlsDim(dim){
+    document.querySelectorAll('.vp-ctrl').forEach(b=>b.style.opacity=dim?'0.35':'');
+    speedBtn.style.opacity = dim ? '0.35' : '';
+    progWrap.style.opacity = dim ? '0.35' : '';
+  }
+
+  /* ── 切换到嵌入模式（B站/YouTube iframe） ── */
+  function switchToEmbed(embedUrl){
+    // 先停止 video，防止混播
+    vp.pause();
+    vp.removeAttribute('src');
+    vp.load();
+
+    vpMode = 'embed';
+    vp.style.display = 'none';
+    iframeEl.src = embedUrl;
+    iframeEl.style.display = 'block';
+    screen.classList.add('started');
+    overlay.style.pointerEvents = 'none';
+    setControlsDim(true);
+    syncPlayIcon();
+    // 标题更新
+    document.querySelector('.vp-title').innerHTML =
+      '<i class="ti ti-device-tv"></i> 视频播放器 <span style="font-size:10px;color:var(--text-muted);margin-left:4px;">[嵌入模式]</span>';
+    updateDefaultBtn();
+  }
+
+  /* ── 切换到 video 模式（直链 or 默认） ── */
+  function switchToVideo(src, mode){
+    // 先彻底停止 iframe
+    iframeEl.src = '';
+    iframeEl.style.display = 'none';
+
+    vpMode = mode || 'direct';
+    vp.style.display = 'block';
+    overlay.style.pointerEvents = '';
+    setControlsDim(false);
+    screen.classList.remove('started');
+
+    vp.removeAttribute('crossorigin');
+    vp.src = src;
+    vp.load();
+    syncPlayIcon();
+    // 恢复标题
+    document.querySelector('.vp-title').innerHTML = '<i class="ti ti-device-tv"></i> 视频播放器';
+    updateDefaultBtn();
+  }
+
+  /* ── 加载默认背景视频 ── */
+  function loadDefault(){
+    clearHint();
+    switchToVideo(DEFAULT_SRC, 'default');
+    showHint('🎬 默认视频', 'var(--text-muted)');
+  }
+
+  function clearHint(){ document.getElementById('vp-load-hint')?.remove(); }
+
+  function showHint(text, color){
+    clearHint();
+    const h = document.createElement('div');
+    h.id = 'vp-load-hint';
+    h.textContent = text;
+    h.style.cssText = `font-size:11px;color:${color};padding:0 14px 8px;`;
+    document.querySelector('.vp-url-row').before(h);
+  }
+
+  /* ── 开关面板 ── */
+  window.toggleVideoPlayer = function(){
+    const open = panel.classList.toggle('open');
+    btn.classList.toggle('active', open);
+    if(open && vpMode === 'default' && !vp.src){
+      // 首次打开才加载默认视频（不在 HTML 里写死 src，避免后台静默加载）
+      loadDefault();
+    }
+    if(!open){
+      // 关闭面板时暂停 video；embed 模式停掉 iframe
+      if(vpMode === 'embed'){ iframeEl.src=''; }
+      else { vp.pause(); syncPlayIcon(); }
+    }
+  };
+
+  window.vpPlayPause = function(){
+    if(vpMode === 'embed') return; // iframe 模式不处理
+    if(vp.paused){
+      if(!vp.src) loadDefault();
+      vp.play().then(()=>{ screen.classList.add('started'); syncPlayIcon(); }).catch(()=>{});
+    } else {
+      vp.pause(); syncPlayIcon();
+    }
+  };
+
+  window.vpSkip = function(s){
+    if(vpMode==='embed') return;
+    vp.currentTime = Math.max(0, Math.min(vp.duration||0, vp.currentTime+s));
+  };
+  window.vpCycleSpeed = function(){
+    if(vpMode==='embed') return;
+    speedIdx=(speedIdx+1)%speeds.length;
+    vp.playbackRate=speeds[speedIdx];
+    speedBtn.textContent=speeds[speedIdx]+'×';
+  };
+  window.vpSetVol = function(v){ vp.volume=parseFloat(v); vp.muted=false; syncVolIcon(); };
+  window.vpToggleMute = function(){ vp.muted=!vp.muted; if(!vp.muted) volInput.value=vp.volume; syncVolIcon(); };
+  window.vpFullscreen = function(){
+    const el = document.getElementById('vp-screen');
+    if(document.fullscreenElement) document.exitFullscreen();
+    else el.requestFullscreen&&el.requestFullscreen();
+  };
+
+  /* ── 加载外部链接 ── */
+  function parseVideoUrl(url){
+    const bv = url.match(/(?:bilibili\.com\/video\/|b23\.tv\/)([Bb][Vv][0-9A-Za-z]+)/);
+    if(bv) return {type:'bilibili', id:bv[1]};
+    const av = url.match(/bilibili\.com\/video\/av(\d+)/i);
+    if(av) return {type:'bilibili', id:'av'+av[1]};
+    const yt = url.match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/|youtube\.com\/embed\/)([A-Za-z0-9_-]{11})/);
+    if(yt) return {type:'youtube', id:yt[1]};
+    return {type:'direct', id:url};
+  }
+
+  window.vpLoadUrl = function(){
+    const inp = document.getElementById('vp-url-input');
+    const url = inp.value.trim();
+    if(!url) return;
+    inp.value='';
+
+    const parsed = parseVideoUrl(url);
+
+    if(parsed.type==='bilibili'){
+      switchToEmbed(`https://player.bilibili.com/player.html?bvid=${parsed.id}&page=1&autoplay=1&high_quality=1`);
+      showHint('📺 B站视频已嵌入（播放器内含弹幕和画质选择）', 'var(--blue)');
+      return;
+    }
+    if(parsed.type==='youtube'){
+      switchToEmbed(`https://www.youtube.com/embed/${parsed.id}?autoplay=1&rel=0`);
+      showHint('▶ YouTube 视频已嵌入', 'var(--green)');
+      return;
+    }
+
+    // 直链模式
+    showHint('加载中…', 'var(--text-muted)');
+    switchToVideo(url, 'direct');
+
+    const onCanPlay = ()=>{
+      cleanup();
+      clearHint();
+      vp.play().then(()=>{ screen.classList.add('started'); syncPlayIcon(); })
+        .catch(()=>showHint('⚠ 点击播放按钮开始', 'var(--amber)'));
+    };
+    const onErr = ()=>{
+      cleanup();
+      showHint('⚠ 无法加载：不支持此格式或跨域限制，仅支持 .mp4 / .m3u8 直链', 'var(--red)');
+      // 3 秒后回到默认视频
+      setTimeout(loadDefault, 3000);
+    };
+    function cleanup(){
+      vp.removeEventListener('canplay', onCanPlay);
+      vp.removeEventListener('error', onErr);
+    }
+    vp.addEventListener('canplay', onCanPlay);
+    vp.addEventListener('error', onErr);
+  };
+
+  window.vpExitExternal = function(){
+    clearHint();
+    loadDefault();
+    // 重新自动播放
+    const onReady=()=>{ vp.removeEventListener('canplay',onReady); vp.play().catch(()=>{}); syncPlayIcon(); screen.classList.add('started'); };
+    vp.addEventListener('canplay', onReady);
+  };
+
+  // 根据当前模式更新默认视频按钮样式
+  function updateDefaultBtn(){
+    const db = document.getElementById('vp-default-btn');
+    if (!db) return;
+    if (vpMode === 'default') {
+      db.style.color = '#3ddc84';
+      db.style.borderColor = 'rgba(61,220,132,0.5)';
+      db.style.background = 'rgba(61,220,132,0.1)';
+    } else {
+      db.style.color = 'var(--text-muted)';
+      db.style.borderColor = 'rgba(61,220,132,0.2)';
+      db.style.background = 'rgba(61,220,132,0.06)';
+    }
+  }
+
+  /* ── video 事件监听 ── */
+  vp.addEventListener('timeupdate',()=>{
+    if(!vp.duration) return;
+    progEl.style.width=(vp.currentTime/vp.duration*100)+'%';
+    curEl.textContent=fmt(vp.currentTime);
+  });
+  vp.addEventListener('loadedmetadata',()=>{ durEl.textContent=fmt(vp.duration); });
+  vp.addEventListener('play', syncPlayIcon);
+  vp.addEventListener('pause', syncPlayIcon);
+  vp.addEventListener('ended',()=>{ screen.classList.remove('started'); syncPlayIcon(); });
+
+  progWrap.addEventListener('click',function(e){
+    if(!vp.duration||vpMode==='embed') return;
+    const r=this.getBoundingClientRect();
+    vp.currentTime=((e.clientX-r.left)/r.width)*vp.duration;
+  });
+
+  document.addEventListener('keydown',function(e){
+    if(!panel.classList.contains('open')) return;
+    if(e.target.tagName==='INPUT') return;
+    if(e.code==='Space'){ e.preventDefault(); vpPlayPause(); }
+    if(e.code==='ArrowRight') vpSkip(10);
+    if(e.code==='ArrowLeft') vpSkip(-10);
+  });
+})();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+  /* ── Clock ── */
+  function tick() {
+    document.getElementById("header-time").textContent =
+      new Date().toLocaleTimeString("zh-CN", {hour12: false});
+  }
+  tick(); setInterval(tick, 1000);
+
+  /* ── Helpers ── */
+  function setBadge(id, text, type) {
+    const el = document.getElementById(id);
+    el.className = "status-badge" + (type ? " " + type : "");
+    el.textContent = text;
+  }
+
+  /* ── JSONP ── */
+  function jsonp(url, cbParam, timeout) {
+    return new Promise((resolve, reject) => {
+      const cbName = "_cb_" + Math.random().toString(36).slice(2);
+      const script = document.createElement("script");
+      const timer = setTimeout(() => { cleanup(); reject("timeout"); }, timeout || 6000);
+      function cleanup() { clearTimeout(timer); delete window[cbName]; script.remove(); }
+      window[cbName] = (data) => { cleanup(); resolve(data); };
+      script.src = url + (url.includes("?") ? "&" : "?") + cbParam + "=" + cbName;
+      script.onerror = () => { cleanup(); reject("error"); };
+      document.head.appendChild(script);
+    });
+  }
+
+  /* ── 全局唯一 IP 数据缓存，所有模块共享，只请求一次 ── */
+  // 多源并发查询 + 交叉验证，解决 ip-api 免费版对代理/机房漏报问题
+  let _ipDataPromise = null;
+  function fetchIPData() {
+    if (_ipDataPromise) return _ipDataPromise;
+    _ipDataPromise = (async () => {
+
+      // ── 并发查三个源 ──
+      const [r1, r2, r3] = await Promise.allSettled([
+
+        // 源1: ip-api.com (proxy/hosting字段，但免费版有漏报)
+        jsonp(
+          "https://ip-api.com/json/?fields=status,query,city,regionName,country,countryCode,isp,org,as,timezone,proxy,hosting,mobile",
+          "callback", 7000
+        ).then(d => d.status === "success" ? d : null).catch(() => null),
+
+        // 源2: ipwho.is (type字段：hosting/business/isp)
+        fetch("https://ipwho.is/", {signal: AbortSignal.timeout(6000)})
+          .then(r => r.json())
+          .then(d => d.ip && d.success ? d : null)
+          .catch(() => null),
+
+        // 源3: ipinfo.io (privacy.proxy/privacy.hosting/privacy.datacenter 字段最准)
+        fetch("https://ipinfo.io/json?token=", {signal: AbortSignal.timeout(6000)})
+          .then(r => r.json())
+          .then(d => d.ip ? d : null)
+          .catch(() => null),
+      ]);
+
+      const d1 = r1.status === "fulfilled" ? r1.value : null;
+      const d2 = r2.status === "fulfilled" ? r2.value : null;
+      const d3 = r3.status === "fulfilled" ? r3.value : null;
+
+      // 基础地理/ISP信息优先取 ip-api，fallback 到其他源
+      const base = d1 || (d2 ? {
+        status:"success", query:d2.ip,
+        city:d2.city||"", regionName:d2.region||"", country:d2.country||"",
+        countryCode:d2.country_code||"", isp:d2.connection?.isp||"",
+        org:d2.connection?.org||"", as:"AS"+(d2.connection?.asn||""),
+        timezone:d2.timezone?.id||"", proxy:false, hosting:false, mobile:false
+      } : null) || (d3 ? {
+        status:"success", query:d3.ip,
+        city:d3.city||"", regionName:d3.region||"", country:d3.country||"",
+        countryCode:d3.country||"", isp:d3.org||"", org:d3.org||"",
+        as:d3.org||"", timezone:d3.timezone||"", proxy:false, hosting:false, mobile:false
+      } : null);
+
+      if (!base) return null;
+
+      // ── 交叉验证：任意一个源认为是代理/机房，就采信 ──
+
+      // ipwho.is 的 type 字段
+      const ipwhoType = d2?.type || "";  // "hosting" / "business" / "isp" / "mobile"
+      const ipwhoIsHosting = ["hosting","business","datacenter"].includes(ipwhoType.toLowerCase());
+
+      // ipinfo.io 的 privacy 字段（需 token，无 token 时 privacy 可能缺失）
+      const ipinfoPrivacy = d3?.privacy || {};
+      const ipinfoIsProxy   = !!(ipinfoPrivacy.proxy || ipinfoPrivacy.vpn || ipinfoPrivacy.tor || ipinfoPrivacy.relay);
+      const ipinfoIsHosting = !!(ipinfoPrivacy.hosting);
+
+      // ip-api 的字段
+      const ipApiIsProxy   = !!(d1?.proxy);
+      const ipApiIsHosting = !!(d1?.hosting);
+
+      // ASN 已知机房/云厂商列表（兜底识别，纯 ASN 判断）
+      const asn = (base.as || "").toUpperCase();
+      const knownDcAsns = [
+        "AS31898",  // Oracle Cloud
+        "AS16509","AS14618", // AWS
+        "AS15169","AS396982", // Google Cloud
+        "AS8075","AS8070",    // Microsoft Azure
+        "AS20473",            // Vultr
+        "AS63949","AS62785",  // Linode/Akamai
+        "AS14061",            // DigitalOcean
+        "AS45102","AS37963",  // Alibaba Cloud
+        "AS55967","AS9808",   // 华为云/移动
+        "AS24444","AS24445",  // 微软中国
+        "AS132203",           // Tencent Cloud
+        "AS13335",            // Cloudflare
+        "AS209","AS701",      // Uunet/Verizon hosting
+        "AS60068",            // CDN77
+        "AS46606","AS40676",  // Unified Layer / Psychz
+        "AS36352",            // ColoCrossing
+        "AS2914","AS1299",    // NTT / Telia (transit, 常被代理用)
+      ];
+      const asnIsHosting = knownDcAsns.some(a => asn.startsWith(a));
+
+      // 组织名关键词检测
+      const orgStr = (base.org || base.isp || "").toLowerCase();
+      const orgKeywords = ["oracle","amazon","google","microsoft","azure","digitalocean",
+        "vultr","linode","hetzner","ovh","contabo","cloudflare","fastly","akamai",
+        "hosting","datacenter","data center","cloud","vps","dedicated","colocation",
+        "server","cdn","network","telecom","internet","broadband"];
+      const orgIsHosting = orgKeywords.some(k => orgStr.includes(k)) &&
+        !["china telecom","china unicom","china mobile","chinanet"].some(k => orgStr.includes(k));
+
+      // 最终判断：多源 OR 合并（任一认为是就标记）
+      const finalProxy   = ipApiIsProxy || ipinfoIsProxy;
+      const finalHosting = ipApiIsHosting || ipwhoIsHosting || ipinfoIsHosting || asnIsHosting || orgIsHosting;
+      const finalMobile  = !!(d1?.mobile) || ipwhoType.toLowerCase() === "mobile";
+
+      return {
+        ...base,
+        proxy:   finalProxy,
+        hosting: finalHosting,
+        mobile:  finalMobile,
+        // 附带原始各源数据供调试
+        _sources: { ipApi: d1, ipwho: d2, ipinfo: d3 }
+      };
+    })();
+    return _ipDataPromise;
+  }
+
+  /* ── IPv4（复用缓存） ── */
+  async function getV4() {
+    const d = await fetchIPData();
+    if (d) {
+      renderV4({
+        ip: d.query,
+        loc: [d.city, d.regionName, d.country].filter(Boolean).join(", "),
+        isp: d.isp || "—",
+        tz: d.timezone || "—"
+      });
+    } else {
+      document.getElementById("v4-addr").textContent = "获取失败";
+      document.getElementById("v4-loc").textContent = "所有接口均不可用";
+      setBadge("v4-badge", "失败", "err");
+    }
+  }
+  function renderV4(info) {
+    document.getElementById("v4-addr").textContent = info.ip;
+    document.getElementById("v4-loc").textContent = info.loc || "未知";
+    document.getElementById("v4-isp").textContent = info.isp;
+    document.getElementById("v4-tz").textContent = info.tz;
+    setBadge("v4-badge", "已获取", "ok");
+  }
+
+  /* ── IPv6（独立请求，获取 IP + ISP + ASN + 地理） ── */
+  async function getV6() {
+    let v6ip = null;
+
+    // 第一步：只拿 IPv6 地址（纯文本接口，强制走 IPv6 栈）
+    const ipSources = [
+      "https://6.ipw.cn",
+      "https://v6.ident.me",
+      "https://api6.ipify.org",
+    ];
+    for (const url of ipSources) {
+      try {
+        const r = await fetch(url, {signal: AbortSignal.timeout(5000)});
+        const ip = (await r.text()).trim();
+        if (ip && ip.includes(":")) { v6ip = ip; break; }
+      } catch(e) {}
+    }
+
+    if (!v6ip) {
+      // fallback：看主缓存是否本身就是 IPv6
+      try {
+        const d = await fetchIPData();
+        if (d && d.query && d.query.includes(":")) v6ip = d.query;
+      } catch(e) {}
+    }
+
+    if (!v6ip) {
+      document.getElementById("v6-addr").textContent = "无 IPv6 或不支持";
+      document.getElementById("v6-loc").textContent = "—";
+      document.getElementById("v6-isp").textContent = "—";
+      document.getElementById("v6-type").textContent = "IPv6 不可用";
+      setBadge("v6-badge", "不支持", "warn");
+      return;
+    }
+
+    // 第二步：用拿到的 IPv6 地址查详情（并发三源）
+    const [rA, rB, rC] = await Promise.allSettled([
+      // ip-api.com 支持 IPv6 查询
+      fetch(`https://ip-api.com/json/${v6ip}?fields=status,city,regionName,country,isp,org,as`, {signal: AbortSignal.timeout(6000)})
+        .then(r=>r.json()).then(d=>d.status==="success"?d:null).catch(()=>null),
+      // ipapi.is 支持 IPv6
+      fetch(`https://api.ipapi.is/?q=${v6ip}`, {signal: AbortSignal.timeout(6000)})
+        .then(r=>r.json()).catch(()=>null),
+      // ipwho.is 支持 IPv6
+      fetch(`https://ipwho.is/${v6ip}`, {signal: AbortSignal.timeout(6000)})
+        .then(r=>r.json()).then(d=>d.success?d:null).catch(()=>null),
+    ]);
+    const dA = rA.status==="fulfilled" ? rA.value : null;
+    const dB = rB.status==="fulfilled" ? rB.value : null;
+    const dC = rC.status==="fulfilled" ? rC.value : null;
+
+    // 合并：优先 ip-api，fallback ipapi.is / ipwho.is
+    const city    = dA?.city    || dC?.city    || "";
+    const region  = dA?.regionName || dC?.region || "";
+    const country = dA?.country || dC?.country  || dB?.location?.country || "";
+    const isp     = dA?.isp || dA?.org || dC?.connection?.isp || dB?.as?.org || dB?.company?.name || "—";
+    // ASN 多路径提取
+    const asnFromA = dA?.as || "";                                          // "AS1234 Some Name"
+    const asnFromB = dB?.as?.asn   ? "AS" + dB.as.asn   :                  // ipapi.is: {as:{asn:1234}}
+                     dB?.asn       ? "AS" + dB.asn       :                  // 直接字段
+                     dB?.company?.network ? dB.company.network : "";         // 备用
+    const asnFromC = dC?.connection?.asn ? "AS" + dC.connection.asn :      // ipwho.is
+                     dC?.asn ? "AS" + dC.asn : "";
+    const asn = asnFromA.split(" ")[0] || asnFromB || asnFromC || "—";
+    const loc = [city, region, country].filter(Boolean).join(", ") || "—";
+
+    renderV6({ip: v6ip, loc, isp, asn});
+  }
+  function renderV6(info) {
+    document.getElementById("v6-addr").textContent = info.ip;
+    document.getElementById("v6-loc").textContent = info.loc || "—";
+    document.getElementById("v6-isp").textContent = info.isp || "—";
+    document.getElementById("v6-type").textContent = info.asn ? `IPv6 可用 · ${info.asn}` : "IPv6 可用";
+    setBadge("v6-badge", "已获取", "ok");
+  }
+
+  /* ── RTT ── */
+  const pingTargets = [
+    {name:"Google",     icon:"ti-brand-google",    url:"https://www.google.com/favicon.ico"},
+    {name:"Cloudflare", icon:"ti-cloud",           url:"https://www.cloudflare.com/favicon.ico"},
+    {name:"GitHub",     icon:"ti-brand-github",    url:"https://github.com/favicon.ico"},
+    {name:"YouTube",    icon:"ti-brand-youtube",   url:"https://www.youtube.com/favicon.ico"},
+    {name:"Baidu",      icon:"ti-search",          url:"https://www.baidu.com/favicon.ico"},
+    {name:"Alibaba",    icon:"ti-building-store",  url:"https://www.aliyun.com/favicon.ico"},
+    {name:"Tencent",    icon:"ti-message-circle",  url:"https://www.qq.com/favicon.ico"},
+  ];
+  function rttColor(ms) { return ms===null?"#ff5f57":ms<80?"#3ddc84":ms<200?"#f5a623":"#ff5f57"; }
+  function rttLabel(ms) { return ms===null?"超时":ms<80?"优":ms<200?"良":"差"; }
+  async function pingOne(url) {
+    const t0 = performance.now();
+    try { await fetch(url+"?_="+Date.now(),{mode:"no-cors",cache:"no-store",signal:AbortSignal.timeout(8000)}); return Math.round(performance.now()-t0); }
+    catch(e) { return null; }
+  }
+  async function runPing() {
+    const btn = document.getElementById("retest-btn");
+    btn.disabled=true; btn.classList.add("spinning");
+    const list = document.getElementById("ping-list"); list.innerHTML="";
+    const rows = pingTargets.map(t => {
+      const row = document.createElement("div"); row.className="rtt-row";
+      row.innerHTML=`<div class="rtt-name"><i class="ti ${t.icon}"></i>${t.name}</div>
+        <div class="rtt-bar-wrap"><div class="rtt-bar" style="background:#444;"></div></div>
+        <div class="rtt-val">测试中...</div>`;
+      list.appendChild(row); return {row,t};
+    });
+    await Promise.all(rows.map(async({row,t})=>{
+      const ms=await pingOne(t.url);
+      const bar=row.querySelector(".rtt-bar"),val=row.querySelector(".rtt-val"),color=rttColor(ms),pct=ms===null?100:Math.min(100,ms/4);
+      bar.style.width=pct+"%"; bar.style.background=color;
+      val.textContent=ms===null?"超时":`${ms} ms  ${rttLabel(ms)}`; val.style.color=color;
+    }));
+    btn.disabled=false; btn.classList.remove("spinning");
+  }
+
+  /* ── 出口对比 ── */
+  const outletSources = [
+    {name:"IPIP.NET",tag:"国内",tagColor:"#3ddc84",fetch:()=>fetch("https://myip.ipip.net/json",{signal:AbortSignal.timeout(6000)}).then(r=>r.json()).then(d=>{if(!d.data?.ip)throw 0;const loc=(d.data.location||[]).filter(Boolean).filter(s=>s!=="0").join(" ");return{ip:d.data.ip,loc:loc||"—"};})},
+    {name:"Cloudflare",tag:"国际",tagColor:"#7c6cf8",fetch:()=>fetch("https://speed.cloudflare.com/meta",{signal:AbortSignal.timeout(6000)}).then(r=>r.json()).then(d=>{if(!d.clientIp)throw 0;return{ip:d.clientIp,loc:[d.city,d.country].filter(Boolean).join(", ")||"—"};})},
+    {name:"ipify",tag:"国际",tagColor:"#7c6cf8",fetch:()=>fetch("https://api.ipify.org?format=json",{signal:AbortSignal.timeout(6000)}).then(r=>r.json()).then(d=>{if(!d.ip)throw 0;return{ip:d.ip,loc:"Global"};})},
+    {name:"IPinfo.io",tag:"国际",tagColor:"#7c6cf8",fetch:()=>new Promise((res,rej)=>{jsonp("https://ipinfo.io/json","callback",6000).then(d=>d.ip?res({ip:d.ip,loc:[d.city,d.region,d.country].filter(Boolean).join(", ")||"—"}):rej()).catch(rej);})},
+  ];
+  function buildOutletRow(src) {
+    const row = document.createElement("div");
+    row.style.cssText="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);";
+    row.innerHTML=`<div style="width:90px;flex-shrink:0;"><div style="font-size:13px;font-weight:500;color:var(--text-primary);">${src.name}</div>
+      <span style="font-size:11px;padding:2px 8px;border-radius:20px;margin-top:3px;display:inline-block;background:${src.tagColor}22;color:${src.tagColor};border:1px solid ${src.tagColor}44;">${src.tag}</span></div>
+      <div style="flex:1;"><div class="out-ip" style="font-size:14px;font-weight:600;font-family:var(--mono);color:var(--text-primary);"><span class="shimmer" style="width:140px;height:13px;display:inline-block;"></span></div>
+      <div class="out-loc" style="font-size:12px;color:var(--text-secondary);margin-top:3px;">检测中...</div></div>`;
+    return row;
+  }
+  async function runOutlet() {
+    const btn=document.getElementById("outlet-retest-btn"),verdict=document.getElementById("outlet-verdict");
+    btn.disabled=true; btn.classList.add("spinning"); verdict.style.display="none";
+    const list=document.getElementById("outlet-list"); list.innerHTML="";
+    const rows=outletSources.map((src,i)=>{
+      const row=buildOutletRow(src);
+      if(i===outletSources.length-1) row.style.borderBottom="none";
+      list.appendChild(row); return{row,src};
+    });
+    const results=await Promise.all(rows.map(async({row,src})=>{
+      const ipEl=row.querySelector(".out-ip"),locEl=row.querySelector(".out-loc");
+      try { const info=await src.fetch(); ipEl.textContent=info.ip; locEl.textContent=info.loc; return{name:src.name,tag:src.tag,ip:info.ip}; }
+      catch(e) { ipEl.innerHTML=`<span style="color:var(--red);">Connection Failed</span>`; locEl.textContent="—"; return{name:src.name,tag:src.tag,ip:null}; }
+    }));
+    const domestic=results.find(r=>r.tag==="国内"&&r.ip),intl=results.find(r=>r.tag==="国际"&&r.ip);
+    if(domestic&&intl) {
+      const same=domestic.ip===intl.ip; verdict.style.display="block";
+      if(same) { verdict.style.background="rgba(61,220,132,0.1)"; verdict.style.border="1px solid rgba(61,220,132,0.25)"; verdict.style.color="#3ddc84"; verdict.innerHTML=`<i class="ti ti-circle-check" style="vertical-align:-2px;margin-right:6px;"></i>国内外出口一致，未检测到代理`; }
+      else { verdict.style.background="rgba(245,166,35,0.1)"; verdict.style.border="1px solid rgba(245,166,35,0.25)"; verdict.style.color="#f5a623"; verdict.innerHTML=`<i class="ti ti-alert-triangle" style="vertical-align:-2px;margin-right:6px;"></i>国内外出口不一致，可能使用了代理或分流`; }
+    }
+    btn.disabled=false; btn.classList.remove("spinning");
+  }
+
+  /* ── 浏览器本地代理检测（WebRTC + 出口对比） ──
+     原理：
+     1. WebRTC ICE 候选会泄露本机真实局域网IP（如192.168.x.x / 10.x.x.x）
+        如果出口IP是美国Oracle机房，但本机内网IP段是VPN分配的tun0地址，
+        说明本机正在使用代理/VPN
+     2. 国内IPIP接口拿到的IP 与 国际接口 ipify 拿到的IP 如果不一致，
+        说明走了分流代理
+     3. navigator.connection 的 RTT 异常高也可辅助判断
+  ── */
+  let _localProbeResult = null;
+  async function detectLocalProxy() {
+    if (_localProbeResult) return _localProbeResult;
+    const result = { webrtcLeak: false, localIPs: [], splitRoute: false, highRTT: false };
+
+    // ① WebRTC 本机 IP 探测
+    await new Promise(resolve => {
+      try {
+        const pc = new RTCPeerConnection({iceServers:[{urls:"stun:stun.l.google.com:19302"},{urls:"stun:stun1.l.google.com:19302"}]});
+        const ips = new Set();
+        pc.createDataChannel("");
+        pc.onicecandidate = e => {
+          if (!e.candidate) { pc.close(); resolve(); return; }
+          const m = e.candidate.candidate.match(/(\d+\.\d+\.\d+\.\d+)/g) || [];
+          m.forEach(ip => {
+            if (!ip.startsWith("0.") && ip !== "0.0.0.0") ips.add(ip);
+          });
+        };
+        pc.createOffer().then(o => pc.setLocalDescription(o));
+        // 最多等3秒
+        setTimeout(() => { pc.close(); resolve(); }, 3000);
+      } catch(e) { resolve(); }
+    }).then(() => {});
+
+    // 需要重新跑，上面闭包里 ips 用不了，重写一次
+    result.localIPs = await new Promise(resolve => {
+      try {
+        const pc = new RTCPeerConnection({iceServers:[{urls:"stun:stun.l.google.com:19302"}]});
+        const ips = new Set();
+        pc.createDataChannel("");
+        pc.onicecandidate = e => {
+          if (!e.candidate) { pc.close(); resolve([...ips]); return; }
+          const m = e.candidate.candidate.match(/(\d+\.\d+\.\d+\.\d+)/g) || [];
+          m.forEach(ip => { if (ip !== "0.0.0.0") ips.add(ip); });
+        };
+        pc.createOffer().then(o => pc.setLocalDescription(o));
+        setTimeout(() => { pc.close(); resolve([...ips]); }, 3000);
+      } catch(e) { resolve([]); }
+    });
+
+    // VPN/代理 tun 网段特征：10.x.x.x 且不是常见路由器内网（10.0.0.x/10.10.x.x），
+    // 172.16-31.x.x，169.254.x.x（link-local，VPN常用），以及 198.18.x.x（VPN测试段）
+    const vpnHints = result.localIPs.filter(ip => {
+      if (ip.startsWith("169.254.")) return true;   // link-local = 强代理信号
+      if (ip.startsWith("198.18.") || ip.startsWith("198.19.")) return true; // 合成段
+      if (/^172\.(1[6-9]|2\d|3[01])\./.test(ip)) return true;
+      // 10.x.x.x 中排除 10.0.0.x / 10.1.x.x（家用路由常见）保留其他段作为弱信号
+      if (ip.startsWith("10.") && !ip.startsWith("10.0.0.") && !ip.startsWith("10.1.")) return true;
+      return false;
+    });
+    result.webrtcLeak = vpnHints.length > 0;
+    result.vpnHintIPs = vpnHints;
+
+    // ② 出口 IP 国内外比对（复用已有逻辑，但独立发请求不依赖 outlet 面板）
+    try {
+      const [rDom, rIntl] = await Promise.allSettled([
+        fetch("https://myip.ipip.net/json", {signal: AbortSignal.timeout(5000)})
+          .then(r => r.json()).then(d => d.data?.ip || null).catch(() => null),
+        fetch("https://api.ipify.org?format=json", {signal: AbortSignal.timeout(5000)})
+          .then(r => r.json()).then(d => d.ip || null).catch(() => null),
+      ]);
+      const ipDom  = rDom.status  === "fulfilled" ? rDom.value  : null;
+      const ipIntl = rIntl.status === "fulfilled" ? rIntl.value : null;
+      if (ipDom && ipIntl && ipDom !== ipIntl) result.splitRoute = true;
+      result.ipDom  = ipDom;
+      result.ipIntl = ipIntl;
+    } catch(e) {}
+
+    // ③ RTT 参考（connection API，不是所有浏览器都有）
+    try {
+      const rtt = navigator.connection?.rtt;
+      if (rtt && rtt > 300) result.highRTT = true;
+      result.rtt = rtt;
+    } catch(e) {}
+
+    _localProbeResult = result;
+    return result;
+  }
+
+  /* ── IP 风险检测（复用全局缓存，零额外请求） ── */
+  function setRiskRing(score) {
+    const ring=document.getElementById("risk-ring"),numEl=document.getElementById("risk-num");
+    const offset=314-(score/100)*314,color=score>=60?"#ff5f57":score>=30?"#f5a623":"#3ddc84";
+    ring.style.strokeDashoffset=offset; ring.style.stroke=color;
+    numEl.style.color=color; numEl.textContent=score;
+  }
+  async function _runRiskCore() {
+    const btn=document.getElementById("risk-btn");
+    btn.disabled=true; btn.classList.add("spinning");
+    // 每次点击重测都无条件清除所有缓存，强制全量重新拉取
+    _ipDataPromise = null;
+    _localProbeResult = null;
+
+    // IP数据 + 本地代理探测 并发进行
+    const [d, local] = await Promise.all([fetchIPData(), detectLocalProxy()]);
+
+    if(!d) {
+      document.getElementById("risk-verdict").textContent="数据获取失败，请稍后重试";
+      const ab=document.getElementById("attr-badge"); ab.className="status-badge err"; ab.textContent="失败";
+      const bb=document.getElementById("bl-badge"); bb.className="status-badge err"; bb.textContent="失败";
+      btn.disabled=false; btn.classList.remove("spinning"); return;
+    }
+    // 仅对国外流量（非中国大陆）进行风险评估
+    const cnCodes = ["CN"];
+    if (cnCodes.includes(d.countryCode)) {
+      setRiskRing(0);
+      document.getElementById("risk-verdict").textContent="✓ 国内 IP，无需风险评估";
+      document.getElementById("risk-tags").innerHTML=`<span class="tag clean"><i class="ti ti-map-pin"></i>中国大陆 IP</span><span class="tag info"><i class="ti ti-shield-check"></i>仅评估境外流量</span>`;
+      const setBar=(id,vid,pct)=>{ const w=pct>0?Math.max(pct,2):0; const el=document.getElementById(id); el.style.width=w+"%"; el.style.opacity=pct>0?"1":"0.3"; document.getElementById(vid).textContent=pct+"%"; };
+      // 国内 IP 流量比例：机房IP爬虫偏高，普通宽带以人类流量为主
+      const cnHosting = d.hosting;
+      setBar("bar-human","val-human",cnHosting?55:85);
+      setBar("bar-bot","val-bot",cnHosting?40:12);
+      setBar("bar-mal","val-mal",cnHosting?5:3);
+      // 依然填充IP属性
+      const typeLabel=d.hosting?"数据中心/云服务":d.mobile?"移动网络":"宽带/住宅";
+      const items=[
+        ["ASN 编号",d.as?d.as.split(" ")[0]:"—"],
+        ["运营商组织",d.org||d.isp||"—"],
+        ["IP 类型",typeLabel],
+        ["使用类型",d.mobile?"移动运营商":d.hosting?"商业托管":"ISP 宽带"],
+        ["代理/VPN",d.proxy?"⚠ 已检出":"✓ 未检出"],
+        ["Tor 出口",(d.proxy&&d.hosting)?"⚠ 可能":"✓ 未检出"],
+        ["数据中心",d.hosting?"⚠ 是":"✓ 否"],
+        ["注册国家",(d.country||"—")+(d.countryCode?" ("+d.countryCode+")":"")],
+      ];
+      document.getElementById("attr-grid").innerHTML=items.map(([k,v])=>{
+        const color=v.startsWith("⚠")?"var(--amber)":v.startsWith("✓")?"var(--green)":"var(--text-primary)";
+        return `<div class="attr-item"><div class="attr-key">${k}</div><div class="attr-val" style="color:${color};">${v}</div></div>`;
+      }).join("");
+      document.getElementById("attr-badge").className="status-badge ok"; document.getElementById("attr-badge").textContent="已获取";
+      document.getElementById("bl-list").innerHTML=`<div class="bl-row"><div class="bl-name" style="color:var(--text-muted);">仅对境外 IP 执行黑名单查询</div></div>`;
+      document.getElementById("bl-badge").className="status-badge"; document.getElementById("bl-badge").textContent="已跳过";
+      btn.disabled=false; btn.classList.remove("spinning"); return;
+    }
+
+    const ip = d.query;
+
+    // ── 本地 ASN 特征推算（纯本地，零网络请求，作为稳定兜底） ──
+    const asnRaw = (d.as || d.org || "").toUpperCase();
+    const orgRaw = (d.org || d.isp || "").toLowerCase();
+    // 已知高风险 VPN/代理 ASN
+    const knownVpnAsns = ["AS9009","AS60068","AS29802","AS30633","AS36352","AS40676",
+      "AS206264","AS209854","AS197183","AS62240","AS46606","AS7018"];
+    // 已知数据中心 ASN
+    const knownDcAsns  = ["AS31898","AS16509","AS14618","AS15169","AS396982",
+      "AS8075","AS8070","AS20473","AS63949","AS14061","AS45102","AS37963",
+      "AS132203","AS13335","AS60068","AS209","AS2914","AS1299","AS24940"];
+    const asnIsKnownVpn = knownVpnAsns.some(a=>asnRaw.startsWith(a));
+    const asnIsKnownDc  = knownDcAsns.some(a=>asnRaw.startsWith(a));
+    const orgIsHosting  = ["oracle","amazon","aws","google cloud","microsoft azure","digitalocean",
+      "vultr","linode","hetzner","ovh","contabo","cloudflare","fastly","akamai",
+      "hosting","datacenter","data center","vps","dedicated server","colocation"]
+      .some(k=>orgRaw.includes(k));
+
+    // ── 显示查询中占位（5个接口） ──
+    document.getElementById("bl-badge").className="status-badge"; document.getElementById("bl-badge").textContent="查询中...";
+    document.getElementById("bl-list").innerHTML=`
+      <div class="bl-row"><div class="bl-name">GetIPIntel</div><div class="bl-status checking">查询中</div></div>
+      <div class="bl-row"><div class="bl-name">AbuseIPDB</div><div class="bl-status checking">查询中</div></div>
+      <div class="bl-row"><div class="bl-name">ipapi.is</div><div class="bl-status checking">查询中</div></div>
+      <div class="bl-row"><div class="bl-name">Shodan InternetDB</div><div class="bl-status checking">查询中</div></div>
+      <div class="bl-row"><div class="bl-name">ipwho.is</div><div class="bl-status checking">查询中</div></div>
+    `;
+
+    // ── 并发查询：5个接口 ──
+    const [rGetipintel, rAbuseipdb, rIpapi, rShodan, rIpwho] = await Promise.allSettled([
+
+      // 0. GetIPIntel — 完全免费无需Key，返回0~1恶意概率，oflags=r 覆盖住宅代理
+      //    flags=b: 动态检测+黑名单；oflags=r: 住宅代理检测（漏报最多的场景）
+      fetch(`https://check.getipintel.net/check.php?ip=${ip}&contact=check@meizizi.me&flags=b&oflags=r&format=json`,
+        {signal: AbortSignal.timeout(12000)})
+        .then(r=>r.json())
+        .then(d=>{
+          // result: 0~1概率值，-1~-6为错误码
+          const v = parseFloat(d?.result ?? -1);
+          return (v >= 0) ? { score: v, isProxy: d?.proxy=="1", isVpn: d?.vpn=="1" } : null;
+        })
+        .catch(()=>null),
+
+      // 1. AbuseIPDB — 通过公共 CORS 代理调用，返回 abuseConfidenceScore(0-100) + 举报次数
+      //    使用 allorigins 代理绕过浏览器 CORS 限制（API Key 通过 URL 传递，个人展示页可接受）
+      fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(
+        `https://api.abuseipdb.com/api/v2/check?ipAddress=${ip}&maxAgeInDays=90`
+      )}&headers=${encodeURIComponent(JSON.stringify({
+        "Key": "f82c9c4b8c2a1d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7",
+        "Accept": "application/json"
+      }))}`, {signal: AbortSignal.timeout(10000)})
+        .then(r=>r.json())
+        .then(outer=>{
+          const d = typeof outer.contents==="string" ? JSON.parse(outer.contents) : outer.contents;
+          return (d?.data?.ipAddress) ? d.data : null;
+        })
+        .catch(()=>null),
+
+      // 2. ipapi.is — 稳定CORS，返回 is_proxy/is_abuser/is_residential_proxy/abuse.score
+      fetch(`https://api.ipapi.is/?q=${ip}`, {signal: AbortSignal.timeout(10000)})
+        .then(r=>r.json())
+        .then(d=>(d && d.ip)?d:null)
+        .catch(()=>null),
+
+      // 3. Shodan InternetDB — 稳定CORS，每个IP有独立扫描结果（tags/vulns/ports）
+      fetch(`https://internetdb.shodan.io/${ip}`, {signal: AbortSignal.timeout(10000)})
+        .then(r=>r.json())
+        .then(d=>(d && !d.detail && (d.tags||d.ports||d.vulns))?d:
+              (d && d.detail)?{_nodata:true}:null)
+        .catch(()=>null),
+
+      // 4. ipwho.is — 稳定CORS，返回 type/connection/security 字段
+      fetch(`https://ipwho.is/${ip}`, {signal: AbortSignal.timeout(10000)})
+        .then(r=>r.json())
+        .then(d=>(d && d.success)?d:null)
+        .catch(()=>null),
+    ]);
+
+    const getipintelData = rGetipintel.status==="fulfilled" ? rGetipintel.value : null;
+    const abuseipdbData  = rAbuseipdb.status==="fulfilled"  ? rAbuseipdb.value  : null;
+    const ipapiData      = rIpapi.status==="fulfilled"      ? rIpapi.value      : null;
+    const shodanData     = rShodan.status==="fulfilled"     ? rShodan.value     : null;
+    const ipwhoData      = rIpwho.status==="fulfilled"      ? rIpwho.value      : null;
+
+    // ── 提取字段 ──
+
+    // GetIPIntel（概率型检测，专精住宅代理，漏报率低）
+    const getipintelScore      = getipintelData?.score ?? -1;   // -1=失败, 0~1=概率
+    const getipintelIsBad      = getipintelScore >= 0.95;       // >0.95 强信号
+    const getipintelIsSuspect  = getipintelScore >= 0.75 && getipintelScore < 0.95; // 中等信号
+    const getipintelIsProxy    = getipintelData?.isProxy ?? false;
+    const getipintelIsVpn      = getipintelData?.isVpn  ?? false;
+
+    // AbuseIPDB（社区举报库，对攻击/扫描/垃圾邮件覆盖最好）
+    const abuseConfScore       = abuseipdbData?.abuseConfidenceScore ?? 0;  // 0-100
+    const abuseTotalReports    = abuseipdbData?.totalReports ?? 0;
+    const abuseIsWhitelisted   = !!(abuseipdbData?.isWhitelisted);
+    const abuseIsBad           = !abuseIsWhitelisted && abuseConfScore >= 25;
+    const abuseIsSuspect       = !abuseIsWhitelisted && abuseConfScore >= 5 && abuseConfScore < 25;
+    const abuseUsageType       = abuseipdbData?.usageType || "";
+
+    // ipapi.is（最核心的 per-IP 风险源）
+    const ipapiProxy           = !!(ipapiData?.is_proxy);
+    const ipapiAbuser          = !!(ipapiData?.is_abuser);
+    const ipapiAbuseScore      = ipapiData?.abuse?.score ?? 0;      // 0-100
+    const ipapiIsHosting       = !!(ipapiData?.is_datacenter || ipapiData?.is_hosting);
+    const ipapiIsTor           = !!(ipapiData?.is_tor);
+    const ipapiIsVpn           = !!(ipapiData?.is_vpn);
+    const ipapiIsResidential   = !!(ipapiData?.is_residential_proxy); // 住宅代理！漏报最多的场景
+    const ipapiAsnOrg          = ipapiData?.as?.org || "";
+
+    // Shodan InternetDB（per-IP实测数据，差异最大）
+    const shodanNoData  = !!(shodanData?._nodata);
+    const shodanTags    = (!shodanNoData && shodanData?.tags)  || [];
+    const shodanVulns   = (!shodanNoData && shodanData?.vulns) || [];
+    const shodanPorts   = (!shodanNoData && shodanData?.ports) || [];
+    const shodanIsProxy = shodanTags.some(t=>["proxy","vpn","tor","anonymizer"].includes(t.toLowerCase()));
+    const shodanIsTor   = shodanTags.some(t=>t.toLowerCase()==="tor");
+
+    // ipwho.is（connection/security/type 字段）
+    const ipwhoType       = (ipwhoData?.type || "").toLowerCase();       // "isp"/"hosting"/"business"/"mobile"
+    const ipwhoIsHosting  = ["hosting","business","datacenter"].includes(ipwhoType);
+    const ipwhoIsMobile   = ipwhoType === "mobile";
+    const ipwhoSecurity   = ipwhoData?.security || {};
+    const ipwhoIsProxy    = !!(ipwhoSecurity.proxy);
+    const ipwhoIsVpn      = !!(ipwhoSecurity.vpn);
+    const ipwhoIsTor      = !!(ipwhoSecurity.tor);
+    const ipwhoIsRelay    = !!(ipwhoSecurity.relay);
+    const ipwhoIsAbuser   = !!(ipwhoSecurity.abuser);
+    const ipwhoConnOrg    = ipwhoData?.connection?.org || "";
+
+    // ── 综合判断（多源OR） ──
+    const torDetected     = ipapiIsTor || ipwhoIsTor || shodanIsTor;
+    const vpnDetected     = ipapiIsVpn || ipwhoIsVpn || getipintelIsVpn || asnIsKnownVpn;
+    const residentialProxy= ipapiIsResidential || (getipintelIsBad && !vpnDetected && !torDetected); // 住宅代理
+    const proxyDetected2  = ipapiProxy || ipwhoIsProxy || shodanIsProxy || getipintelIsProxy || residentialProxy;
+    const remoteProxy     = d.proxy || proxyDetected2 || vpnDetected || torDetected;
+    const localProxy      = local.webrtcLeak || local.splitRoute;
+    const proxyDetected   = remoteProxy || localProxy;
+    const hostingDetected = d.hosting || ipapiIsHosting || ipwhoIsHosting || asnIsKnownDc || orgIsHosting;
+
+    // ── 综合风险评分 ──
+    let score = 0;
+
+    // A. ipapi.is 滥用分（0-100，核心 per-IP 差异指标）
+    score += Math.round(ipapiAbuseScore * 0.30);        // 最高 30分
+
+    // B. AbuseIPDB 社区举报分（专精攻击/扫描/垃圾邮件，互补 ipapi）
+    score += Math.round(abuseConfScore * 0.25);          // 最高 25分
+    if (abuseTotalReports >= 10)  score += 5;            // 多次举报额外加分
+    if (abuseTotalReports >= 50)  score += 5;
+
+    // C. GetIPIntel 概率分（对住宅代理覆盖最好）
+    if (getipintelScore >= 0)
+      score += Math.round(getipintelScore * 20);         // 最高 20分
+
+    // D. Shodan 实测（per-IP扫描结果，差异极大）
+    score += Math.min(shodanVulns.length * 6, 18);       // 漏洞：最高 18分
+    score += Math.min(shodanTags.length * 3, 12);        // 标签：最高 12分
+
+    // E. 代理/VPN/Tor 类型加权
+    if (torDetected)              score += 30;
+    else if (vpnDetected)         score += 18;
+    else if (residentialProxy)    score += 16;           // 住宅代理：比普通代理危险（更难检测）
+    else if (proxyDetected2)      score += 14;
+    else if (d.proxy)             score += 10;
+
+    // F. 多源交叉确认加分（不同接口都检出，置信度更高）
+    const proxyVoteCount = [
+      ipapiProxy, ipwhoIsProxy, ipwhoIsVpn, ipapiIsVpn,
+      shodanIsProxy, d.proxy, getipintelIsBad, abuseIsBad
+    ].filter(Boolean).length;
+    if (proxyVoteCount >= 4)      score += 18;
+    else if (proxyVoteCount >= 3) score += 12;
+    else if (proxyVoteCount >= 2) score += 6;
+
+    // G. 本地行为检测
+    if (local.webrtcLeak)         score += 20;
+    if (local.splitRoute && !local.webrtcLeak) score += 12;
+    if (local.highRTT)            score += 3;
+
+    // H. 机房/数据中心基础分
+    if (hostingDetected)          score += 10;
+
+    // I. 滥用/中继标记
+    if (ipapiAbuser)              score += 10;
+    if (ipwhoIsAbuser)            score += 8;
+    if (ipwhoIsRelay)             score += 6;
+    if (abuseIsSuspect)           score += 5;
+
+    // J. ASN 已知高风险
+    if (asnIsKnownVpn)            score += 12;
+
+    // K. GetIPIntel 中等信号
+    if (getipintelIsSuspect)      score += 8;
+
+    score = Math.min(score, 100);
+
+    // ── 标签 ──
+    const tags = [];
+    if (torDetected) {
+      tags.push({cls:"risk",icon:"ti-shield-off",text:"Tor 出口节点"});
+    } else if (proxyDetected) {
+      const hints = [];
+      if (local.webrtcLeak)    hints.push("WebRTC泄露");
+      if (local.splitRoute)    hints.push("出口分流");
+      if (ipapiIsVpn||ipwhoIsVpn||vpnDetected||getipintelIsVpn) hints.push("VPN");
+      else if (residentialProxy) hints.push("住宅代理");
+      else if (proxyDetected2) hints.push("代理");
+      else if (d.proxy)        hints.push("IP库标记");
+      if (shodanIsProxy)       hints.push("Shodan");
+      if (asnIsKnownVpn)       hints.push("高风险ASN");
+      if (getipintelIsBad)     hints.push(`GetIPIntel:${(getipintelScore*100).toFixed(0)}%`);
+      tags.push({cls:"risk",icon:"ti-eye-off",text:`代理/VPN 检出${hints.length?"（"+hints.join("·")+"）":""}`});
+    } else if (getipintelIsSuspect) {
+      tags.push({cls:"warn",icon:"ti-eye-off",text:`疑似代理（GetIPIntel: ${(getipintelScore*100).toFixed(0)}%）`});
+    } else {
+      tags.push({cls:"clean",icon:"ti-check",text:"未检出代理"});
+    }
+    if (residentialProxy && !torDetected) { tags.push({cls:"risk",icon:"ti-home-signal",text:"住宅代理（最难检测）"}); }
+    if (hostingDetected) { tags.push({cls:"warn",icon:"ti-server",text:"数据中心/机房 IP"}); }
+    else                 { tags.push({cls:"clean",icon:"ti-home",text:"住宅/宽带 IP"}); }
+    if (d.mobile||ipwhoIsMobile) { tags.push({cls:"info",icon:"ti-device-mobile",text:"移动网络"}); }
+    if (abuseConfScore >= 25)     { tags.push({cls:"risk",icon:"ti-alert-triangle",text:`AbuseIPDB ${abuseConfScore}分 / ${abuseTotalReports}次举报`}); }
+    else if (abuseIsSuspect)      { tags.push({cls:"warn",icon:"ti-alert-triangle",text:`AbuseIPDB 可疑 ${abuseConfScore}分`}); }
+    if (ipapiAbuseScore >= 50)    { tags.push({cls:"risk",icon:"ti-bug",text:`ipapi.is 滥用 ${ipapiAbuseScore}/100`}); }
+    else if (ipapiAbuseScore >= 20){ tags.push({cls:"warn",icon:"ti-bug",text:`ipapi.is 滥用 ${ipapiAbuseScore}/100`}); }
+    if (shodanVulns.length > 0)   { tags.push({cls:"warn",icon:"ti-shield-x",text:`Shodan ${shodanVulns.length} 个漏洞`}); }
+    if (shodanPorts.length > 0)   { tags.push({cls:"info",icon:"ti-plug",text:`开放端口 ${shodanPorts.length} 个`}); }
+    if (ipwhoIsRelay)             { tags.push({cls:"warn",icon:"ti-arrows-exchange",text:"中继节点"}); }
+    if (local.webrtcLeak && local.vpnHintIPs?.length) {
+      tags.push({cls:"warn",icon:"ti-wifi-off",text:`WebRTC 内网: ${local.vpnHintIPs.slice(0,2).join(", ")}`});
+    }
+    if (asnIsKnownVpn)            { tags.push({cls:"risk",icon:"ti-alert-triangle",text:"高风险 ASN 段"}); }
+
+    // ── 渲染评分环和标签 ──
+    setRiskRing(score);
+    document.getElementById("risk-verdict").textContent =
+      score<20 ? "✓ 风险较低，正常访问" : score<50 ? "⚠ 中度风险，存在异常" : "✗ 高风险，强烈建议拦截";
+    document.getElementById("risk-tags").innerHTML =
+      tags.map(t=>`<span class="tag ${t.cls}"><i class="ti ${t.icon}"></i>${t.text}</span>`).join("");
+
+    // ── 流量比例（基于多源评分，有数据兜底） ──
+    const setBar=(id,vid,pct)=>{
+      const w = pct > 0 ? Math.max(pct, 3) : 0;
+      const el = document.getElementById(id);
+      el.style.width = w + "%";
+      el.style.opacity = pct > 0 ? "1" : "0.25";
+      document.getElementById(vid).textContent = pct + "%";
+    };
+
+    // 恶意流量：ipapi滥用分 + AbuseIPDB + GetIPIntel + Shodan漏洞 + 代理/Tor标记
+    const malRaw = Math.round(
+        ipapiAbuseScore * 0.30
+      + abuseConfScore  * 0.25
+      + (getipintelScore >= 0 ? getipintelScore * 15 : 0)
+      + Math.min(shodanVulns.length * 5, 15)
+      + (torDetected ? 25 : vpnDetected||proxyDetected2 ? 12 : 0)
+      + (ipapiAbuser||ipwhoIsAbuser ? 8 : 0)
+      + (asnIsKnownVpn ? 8 : 0)
+    );
+    const malPct = Math.min(65, Math.max(0, malRaw));
+
+    // 爬虫/机器：Shodan开放端口/标签 + 机房特征
+    const botRaw = Math.round(
+        Math.min(shodanPorts.length * 1.2, 20)
+      + Math.min(shodanTags.length * 4, 16)
+      + (hostingDetected ? 20 : 0)
+      + (asnIsKnownDc ? 8 : 0)
+      + (proxyDetected2||vpnDetected ? 8 : 0)
+    );
+    const botPct = Math.min(55, Math.max(0, botRaw));
+
+    // 人类流量 = 剩余，最低5%（住宅宽带至少给60%）
+    const humanFloor = (!hostingDetected && !proxyDetected) ? 60 : 5;
+    const humanPct = Math.max(humanFloor, 100 - malPct - botPct);
+
+    setBar("bar-human","val-human",humanPct);
+    setBar("bar-bot","val-bot",botPct);
+    setBar("bar-mal","val-mal",malPct);
+
+    // ── IP属性详情 ──
+    const typeLabel = hostingDetected?"数据中心/机房":(d.mobile||ipwhoIsMobile)?"移动网络":"宽带/住宅";
+    const asnStr  = typeof d.as==="string" ? d.as.split(" ")[0] : "—";
+    const orgStr2 = d.org||d.isp||ipapiAsnOrg||ipwhoConnOrg||"—";
+    const useType = (d.mobile||ipwhoIsMobile)?"移动运营商":hostingDetected?"商业托管/IDC":"ISP 宽带";
+    const items=[
+      ["ASN 编号", asnStr],
+      ["运营商组织", orgStr2],
+      ["IP 类型", typeLabel],
+      ["使用类型", useType],
+      ["代理/VPN", proxyDetected?"⚠ 已检出":"✓ 未检出"],
+      ["Tor 出口", torDetected?"⚠ 已检出":"✓ 未检出"],
+      ["数据中心", hostingDetected?"⚠ 是":"✓ 否"],
+      ["注册国家", (d.country||"—")+(d.countryCode?" ("+d.countryCode+")":"")],
+    ];
+    document.getElementById("attr-grid").innerHTML=items.map(([k,v])=>{
+      const color=v.startsWith("⚠")?"var(--amber)":v.startsWith("✓")?"var(--green)":"var(--text-primary)";
+      return `<div class="attr-item"><div class="attr-key">${k}</div><div class="attr-val" style="color:${color};">${v}</div></div>`;
+    }).join("");
+    document.getElementById("attr-badge").className="status-badge ok";
+    document.getElementById("attr-badge").textContent="已获取";
+
+    btn.disabled=false; btn.classList.remove("spinning");
+
+    // ── 黑名单列表（5个接口全显示） ──
+    const blList = [
+      {
+        name:"GetIPIntel",
+        listed: getipintelData ? getipintelIsBad : null,
+        detail: getipintelData
+          ? `恶意概率: ${(getipintelScore*100).toFixed(1)}%（${getipintelScore>=0.99?"确认恶意":getipintelScore>=0.95?"高风险":getipintelScore>=0.75?"可疑":"正常"}）${getipintelIsProxy?" 代理":""}${getipintelIsVpn?" VPN":""}`
+          : "查询失败（可能触发速率限制）"
+      },
+      {
+        name:"AbuseIPDB",
+        listed: abuseipdbData ? abuseIsBad : null,
+        detail: abuseipdbData
+          ? `置信度: ${abuseConfScore}% | 举报次数: ${abuseTotalReports}${abuseUsageType?" | "+abuseUsageType:""}${abuseIsWhitelisted?" | 已白名单":""}`
+          : "查询失败（CORS代理超时或Key无效）"
+      },
+      {
+        name:"ipapi.is",
+        listed: ipapiData ? (ipapiProxy||ipapiAbuser||ipapiIsVpn||ipapiIsTor||ipapiIsResidential||ipapiAbuseScore>20) : null,
+        detail: ipapiData
+          ? `代理:${ipapiProxy?"是":"否"} VPN:${ipapiIsVpn?"是":"否"} Tor:${ipapiIsTor?"是":"否"} 住宅代理:${ipapiIsResidential?"⚠是":"否"} 滥用:${ipapiAbuseScore}分`
+          : "查询失败"
+      },
+      {
+        name:"Shodan InternetDB",
+        listed: shodanData && !shodanNoData ? (shodanTags.length>0||shodanVulns.length>0) : (shodanNoData ? false : null),
+        detail: shodanData && !shodanNoData
+          ? `标签: ${shodanTags.join(", ")||"无"}  端口: ${shodanPorts.length}个${shodanVulns.length?`  漏洞: ${shodanVulns.length}个`:""}`
+          : shodanNoData ? "IP未在Shodan收录" : "查询失败"
+      },
+      {
+        name:"ipwho.is",
+        listed: ipwhoData ? (ipwhoIsProxy||ipwhoIsVpn||ipwhoIsTor||ipwhoIsAbuser) : null,
+        detail: ipwhoData
+          ? `类型:${ipwhoData.type||"—"} 代理:${ipwhoIsProxy?"是":"否"} VPN:${ipwhoIsVpn?"是":"否"} Tor:${ipwhoIsTor?"是":"否"}`
+          : "查询失败"
+      },
+    ];
+
+    document.getElementById("bl-list").innerHTML = blList.map(l => {
+      const statusCls = l.listed===null ? "checking" : l.listed ? "listed" : "clean";
+      const statusTxt = l.listed===null ? "查询失败" : l.listed ? "已收录" : "未收录";
+      return `<div class="bl-row">
+        <div style="flex:1;">
+          <div class="bl-name">${l.name}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${l.detail||""}</div>
+        </div>
+        <div class="bl-status ${statusCls}">${statusTxt}</div>
+      </div>`;
+    }).join("");
+
+    const listedCount = blList.filter(l=>l.listed===true).length;
+    const failCount   = blList.filter(l=>l.listed===null).length;
+
+    const bb=document.getElementById("bl-badge");
+    if (failCount === blList.length) { bb.className="status-badge warn"; bb.textContent="查询失败"; }
+    else if (listedCount>0) { bb.className="status-badge err"; bb.textContent=`收录 ${listedCount} 处`; }
+    else { bb.className="status-badge ok"; bb.textContent="未收录"; }
+  }
+
+  /* ── 重测全部：清除所有缓存 + 同步刷新所有IP相关模块 ── */
+  async function runRisk() {
+    // 无条件清除所有缓存，保证换代理后数据完全刷新
+    _ipDataPromise = null;
+    _localProbeResult = null;
+    // 同时重置 IPv4 卡片为 loading 状态
+    document.getElementById("v4-addr").innerHTML = '<span class="shimmer"></span>';
+    document.getElementById("v4-loc").textContent = "—";
+    document.getElementById("v4-isp").textContent = "—";
+    document.getElementById("v4-tz").textContent  = "—";
+    setBadge("v4-badge", "检测中", "");
+    // 并发刷新：IPv4卡片 + 风险评估 + 出口对比
+    await Promise.all([getV4(), _runRiskCore(), runOutlet()]);
+  }
+  const tools=[
+    {name:"ip-score",       icon:"ti-chart-bar",    url:"https://ip-score.com/"},
+    {name:"IP125",          icon:"ti-world-search",  url:"https://www.ip125.com/"},
+    {name:"ifconfig.me",   icon:"ti-terminal",      url:"https://ifconfig.me/"},
+    {name:"DNS Leak Test",  icon:"ti-shield-search", url:"https://browserleaks.com/dns"},
+    {name:"IPv6 Test",      icon:"ti-network",       url:"https://test-ipv6.com/"},
+    {name:"WebRTC Test",    icon:"ti-video",         url:"https://browserleaks.com/webrtc"},
+    {name:"Anonymity Test", icon:"ti-user-shield",   url:"https://whoer.net/"},
+  ];
+  const tl=document.getElementById("tool-links");
+  tools.forEach(t=>{
+    const a=document.createElement("a"); a.href=t.url; a.target="_blank"; a.rel="noopener noreferrer"; a.className="tool-link";
+    a.innerHTML=`<i class="ti ${t.icon}" aria-hidden="true"></i>${t.name}`; tl.appendChild(a);
+  });
+
+  /* ── 访问统计折线图（真实本地计数，基于 localStorage） ── */
+  function initVisitChart() {
+    const days=["周一","周二","周三","周四","周五","周六","周日"];
+    const now=new Date();
+    const todayIdx=now.getDay()===0?6:now.getDay()-1;
+    const todayKey=now.toISOString().slice(0,10); // "2025-07-01"
+
+    // 读取或初始化统计数据
+    let stats;
+    try { stats=JSON.parse(localStorage.getItem("meizizi_visit_stats")||"{}"); } catch(e) { stats={}; }
+
+    // 记录本次访问（每天只计一次 PV 防刷，用 sessionStorage 去重）
+    const sessionKey="meizizi_visited_"+todayKey;
+    if(!sessionStorage.getItem(sessionKey)) {
+      sessionStorage.setItem(sessionKey,"1");
+      stats[todayKey]=(stats[todayKey]||0)+1;
+      // 只保留近 90 天数据，避免 localStorage 膨胀
+      const keys=Object.keys(stats).sort();
+      if(keys.length>90) { delete stats[keys[0]]; }
+      try { localStorage.setItem("meizizi_visit_stats",JSON.stringify(stats)); } catch(e) {}
+    }
+
+    // 计算本周（周一~今天）的每日数据
+    const weekDates=[];
+    const monday=new Date(now);
+    monday.setDate(now.getDate()-todayIdx);
+    monday.setHours(0,0,0,0);
+    for(let i=0;i<7;i++){
+      const d2=new Date(monday); d2.setDate(monday.getDate()+i);
+      weekDates.push(d2.toISOString().slice(0,10));
+    }
+    const data=weekDates.map((d2,i)=>{
+      if(i>todayIdx) return null;
+      return stats[d2]||0;
+    });
+
+    const todayVal=data[todayIdx]||0;
+    const weekVal=data.filter(v=>v!==null).reduce((a,b)=>a+b,0);
+    // 累计访问 = 所有 key 之和
+    const totalVal=Object.values(stats).reduce((a,b)=>a+b,0);
+
+    document.getElementById("stat-today").textContent=todayVal;
+    document.getElementById("stat-week").textContent=weekVal;
+    document.getElementById("stat-total").textContent=totalVal.toLocaleString();
+
+    const ctx=document.getElementById("visit-chart").getContext("2d");
+    const gradient=ctx.createLinearGradient(0,0,0,100);
+    gradient.addColorStop(0,"rgba(124,108,248,0.3)");
+    gradient.addColorStop(1,"rgba(124,108,248,0)");
+    const pointColors=data.map((_,i)=>i===todayIdx?"#3ddc84":"#7c6cf8");
+    const pointRadius=data.map((_,i)=>i===todayIdx?5:3);
+    new Chart(ctx,{
+      type:"line",
+      data:{
+        labels:days,
+        datasets:[{
+          label:"访问量",
+          data:data,
+          borderColor:"#7c6cf8",
+          borderWidth:2,
+          backgroundColor:gradient,
+          fill:true,
+          tension:0.4,
+          pointBackgroundColor:pointColors,
+          pointBorderColor:pointColors,
+          pointRadius:pointRadius,
+          pointHoverRadius:6,
+          spanGaps:false,
+        }]
+      },
+      options:{
+        responsive:true,
+        maintainAspectRatio:false,
+        interaction:{mode:"index",intersect:false},
+        plugins:{
+          legend:{display:false},
+          tooltip:{
+            backgroundColor:"rgba(10,10,20,0.9)",
+            borderColor:"rgba(255,255,255,0.1)",
+            borderWidth:1,
+            titleColor:"#8888a0",
+            bodyColor:"#f0f0f4",
+            padding:10,
+            callbacks:{label:(ctx)=>`访问量：${ctx.parsed.y ?? "—"}`}
+          }
+        },
+        scales:{
+          x:{
+            grid:{color:"rgba(255,255,255,0.04)"},
+            ticks:{color:"#55556a",font:{size:11}},
+            border:{display:false}
+          },
+          y:{
+            grid:{color:"rgba(255,255,255,0.04)"},
+            ticks:{color:"#55556a",font:{size:11},maxTicksLimit:4},
+            border:{display:false},
+            beginAtZero:true
+          }
+        }
+      }
+    });
+  }
+
+  /* ── Live2D 看板娘 ── */
+  (function(){
+    const wrap    = document.getElementById('live2d-wrap');
+    const btn     = document.getElementById('live2d-btn');
+    let isOpen    = false;
+    let dragging  = false;
+    let userDragged = false; // 用户是否手动拖拽过（拖拽后不再自动偏移）
+    let startX, startY, startL, startT;
+
+    // 将 live2d-wrap 初始化为绝对定位（基于 bottom/left），以便后续拖拽
+    function initPos(){
+      if (wrap._posInit) return;
+      wrap._posInit = true;
+      const rect = wrap.getBoundingClientRect();
+      wrap.style.top    = rect.top  + 'px';
+      wrap.style.left   = rect.left + 'px';
+      wrap.style.bottom = 'auto';
+    }
+
+    // 供外部（音乐播放器）调用，同步 live2d 的位置
+    window._syncLive2DPosition = function(musicOpen){
+      if (userDragged) return; // 用户已手动拖，不自动干预
+      if (musicOpen !== undefined ? musicOpen : document.getElementById('music-player').classList.contains('open')) {
+        // 音乐播放器宽300px + left16px + gap10px = 326px
+        if (!wrap._posInit) {
+          // 还没打开过，直接改 CSS left
+          wrap.style.left = '326px';
+        } else {
+          wrap.style.left = '326px';
+        }
+      } else {
+        wrap.style.left = '16px';
+      }
+    };
+
+    window.toggleLive2D = function() {
+      isOpen = !isOpen;
+      wrap.classList.toggle('open', isOpen);
+      btn.classList.toggle('active', isOpen);
+      if (isOpen) {
+        initPos();
+        // 打开时同步音乐播放器状态
+        window._syncLive2DPosition();
+      }
+    };
+
+    // 拖拽层：盖在 iframe 上方，避免 iframe 抢鼠标事件
+    const dragLayer = document.createElement('div');
+    dragLayer.style.cssText = `
+      position:absolute; inset:0; z-index:10; cursor:move;
+      display:none; border-radius:16px;
+    `;
+    wrap.appendChild(dragLayer);
+
+    // 长按 300ms 激活拖拽（鼠标）
+    let longPressTimer = null;
+    wrap.addEventListener('mousedown', e => {
+      if (e.button !== 0) return;
+      const startMX = e.clientX, startMY = e.clientY;
+      longPressTimer = setTimeout(() => {
+        initPos();
+        dragLayer.style.display = 'block';
+        wrap.classList.add('dragging');
+        const rect = wrap.getBoundingClientRect();
+        dragging = true;
+        startX = startMX; startY = startMY;
+        startL = rect.left; startT = rect.top;
+        wrap.style.left   = startL + 'px';
+        wrap.style.top    = startT + 'px';
+        wrap.style.bottom = 'auto';
+      }, 300);
+    });
+    window.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      const dx = e.clientX - startX, dy = e.clientY - startY;
+      const maxL = window.innerWidth  - wrap.offsetWidth;
+      const maxT = window.innerHeight - wrap.offsetHeight;
+      wrap.style.left = Math.max(0, Math.min(maxL, startL + dx)) + 'px';
+      wrap.style.top  = Math.max(0, Math.min(maxT, startT + dy)) + 'px';
+    });
+    window.addEventListener('mouseup', () => {
+      clearTimeout(longPressTimer);
+      if (dragging) {
+        dragging = false;
+        userDragged = true;
+        dragLayer.style.display = 'none';
+        wrap.classList.remove('dragging');
+      }
+    });
+
+    // 触摸支持（移动端）
+    wrap.addEventListener('touchstart', e => {
+      const t = e.touches[0];
+      longPressTimer = setTimeout(() => {
+        initPos();
+        dragLayer.style.display = 'block';
+        wrap.classList.add('dragging');
+        const rect = wrap.getBoundingClientRect();
+        dragging = true;
+        startX = t.clientX; startY = t.clientY;
+        startL = rect.left; startT = rect.top;
+        wrap.style.left = startL + 'px'; wrap.style.top = startT + 'px'; wrap.style.bottom = 'auto';
+      }, 300);
+    }, {passive:true});
+    window.addEventListener('touchmove', e => {
+      if (!dragging) return;
+      const t = e.touches[0];
+      const dx = t.clientX - startX, dy = t.clientY - startY;
+      const maxL = window.innerWidth - wrap.offsetWidth;
+      const maxT = window.innerHeight - wrap.offsetHeight;
+      wrap.style.left = Math.max(0, Math.min(maxL, startL + dx)) + 'px';
+      wrap.style.top  = Math.max(0, Math.min(maxT, startT + dy)) + 'px';
+    }, {passive:true});
+    window.addEventListener('touchend', () => {
+      clearTimeout(longPressTimer);
+      if (dragging) {
+        dragging = false;
+        userDragged = true;
+        dragLayer.style.display = 'none';
+        wrap.classList.remove('dragging');
+      }
+    });
+  })();
+
+
+  fetchIPData().then(() => {
+    getV4();
+    _runRiskCore();
+  });
+  getV6();
+  runPing();
+  runOutlet();
+  initVisitChart();
+</script>
+</body>
+</html>
